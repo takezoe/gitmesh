@@ -9,7 +9,7 @@ libraryDependencies ++= Seq(
   "org.eclipse.jgit"           % "org.eclipse.jgit.archive"     % "4.9.2.201712150930-r",
   "com.github.takezoe"        %% "resty"                        % "0.0.14",
   "commons-io"                 % "commons-io"                   % "2.6",
-  "org.apache.httpcomponents"  % "httpclient"                   % "4.5.4",
+  //"org.apache.httpcomponents"  % "httpclient"                   % "4.5.4",
   "com.h2database"             % "h2"                           % "1.4.196",
   "ch.qos.logback"             % "logback-classic"              % "1.2.3",
   "com.zaxxer"                 % "HikariCP"                     % "2.7.4",
@@ -22,3 +22,5 @@ libraryDependencies ++= Seq(
 )
 
 enablePlugins(JettyPlugin)
+
+containerPort := 9090
