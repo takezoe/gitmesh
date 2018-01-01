@@ -15,25 +15,25 @@ class InitializeListener extends ServletContextListener {
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
     //val config = Config.load()
-    val nodes = new Nodes()
-    Resty.register(new APIController(nodes))
+    Resty.register(new APIController())
 
     val system = ActorSystem("mySystem")
     val scheduler = QuartzSchedulerExtension(system)
-    scheduler.schedule("Every30Seconds", system.actorOf(Props[CheckRepositoryNodeActor]), nodes)
+    scheduler.schedule("Every30Seconds", system.actorOf(Props[CheckRepositoryNodeActor]), "tick")
+
   }
 
 }
 
 class CheckRepositoryNodeActor() extends Actor {
   override def receive = {
-    case nodes: Nodes => {
+    case _ => {
       val timeout = System.currentTimeMillis() - (5 * 60 * 1000)
-      nodes.all().foreach { node =>
-        nodes.timestamp(node).foreach { timestamp =>
+      Nodes.all().foreach { node =>
+        Nodes.timestamp(node).foreach { timestamp =>
           if(timestamp < timeout){
             println(node + " is retired.") // TODO
-            nodes.remove(node)
+            Nodes.remove(node)
           }
         }
       }

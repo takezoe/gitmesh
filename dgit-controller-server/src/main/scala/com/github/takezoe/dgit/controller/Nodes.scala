@@ -4,7 +4,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
-class Nodes {
+object Nodes {
 
   val nodes = new ConcurrentHashMap[Node, Long]()
 
@@ -25,6 +25,14 @@ class Nodes {
 
   def timestamp(node: Node): Option[Long] = {
     Option(nodes.get(node))
+  }
+
+  def selectNode(repository: String): Option[Node] = {
+    None
+  }
+
+  def selectNodes(repository: String): Seq[Node] = {
+    Nil
   }
 
 }
