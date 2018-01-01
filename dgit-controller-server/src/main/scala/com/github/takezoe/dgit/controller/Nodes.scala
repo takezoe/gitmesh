@@ -1,15 +1,16 @@
 package com.github.takezoe.dgit.controller
 
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue}
+
 import scala.collection.JavaConverters._
 
 class Nodes {
 
-  var nodes = new ConcurrentLinkedQueue[Node]()
+  val nodes = new ConcurrentHashMap[Node, Long]()
 
   def add(node: Node): Unit = {
     println("Added a repository node: " + node.host + ":" + node.port) // TODO debug
-    nodes.add(node)
+    nodes.put(node, System.currentTimeMillis())
   }
 
   def remove(node: Node): Unit = {
@@ -17,7 +18,11 @@ class Nodes {
   }
 
   def all(): Seq[Node] = {
-    nodes.asScala.toSeq
+    nodes.asScala.keys.toSeq
+  }
+
+  def timestamp(node: Node): Option[Long] = {
+    Option(nodes.get(node))
   }
 
 }

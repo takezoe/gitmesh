@@ -6,8 +6,6 @@ import javax.servlet.annotation.WebListener
 import com.github.takezoe.resty._
 import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
 import akka.actor._
-import com.github.takezoe.resty.util.JsonUtils
-import okhttp3.{OkHttpClient, Request, RequestBody}
 
 @WebListener
 class InitializeListener extends ServletContextListener {
@@ -30,27 +28,13 @@ class InitializeListener extends ServletContextListener {
 class CheckRepositoryNodeActor() extends Actor {
   override def receive = {
     case nodes: Nodes => {
-      val client = new OkHttpClient()
-
+      val timeout = System.currentTimeMillis() - (5 * 60 * 1000)
       nodes.all().foreach { node =>
-        val url = "http://" + node.host + ":" + node.port + "/api/healthCheck"
-        println("check: " + url)
-
-        val request = new Request.Builder().url(url).build()
-
-        try {
-          val response = client.newCall(request).execute
-          val result = JsonUtils.deserialize(response.body.string, classOf[Result]).asInstanceOf[Result]
-          if(result.result != "OK"){
-            println("[WARN] " + node + " is not alive!")
-            println(result)
-          } else {
-            println(node + " is alive!")
+        nodes.timestamp(node).foreach { timestamp =>
+          if(timestamp < timeout){
+            println(node + " is retired.") // TODO
+            nodes.remove(node)
           }
-        } catch {
-          case e: Exception =>
-            println("[WARN] " + node + " is not alive!")
-            println(e.toString)
         }
       }
     }
