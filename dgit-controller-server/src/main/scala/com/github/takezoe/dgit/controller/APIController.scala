@@ -2,16 +2,16 @@ package com.github.takezoe.dgit.controller
 
 import com.github.takezoe.resty.Action
 
-class APIController(nodes: Nodes) {
+class APIController {
 
   @Action(method = "POST", path = "/api/nodes/join")
   def joinRepositoryNode(node: Node): Unit = {
-    nodes.add(node)
+    Nodes.add(node)
   }
 
   @Action(method = "GET", path = "/api/nodes")
   def listNodes(): Seq[Node] = {
-    nodes.all()
+    Nodes.all()
   }
 
 }
