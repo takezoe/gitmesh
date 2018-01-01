@@ -3,6 +3,7 @@ package com.github.takezoe.dgit.repository
 import javax.servlet.{ServletContextEvent, ServletContextListener}
 import javax.servlet.annotation.WebListener
 
+import com.github.takezoe.dgit.repository.models.Node
 import com.github.takezoe.resty._
 import com.github.takezoe.resty.util.JsonUtils
 import okhttp3._
@@ -25,9 +26,7 @@ class InitializeListener extends ServletContextListener {
       .post(RequestBody.create(HttpClientSupport.ContentType_JSON, JsonUtils.serialize(Node("localhost", 8081)))) // TODO
       .build()
     val response = client.newCall(request).execute
-    println(response.body.toString) // TOD debug
+    println(response.body.string) // TOD debug
   }
 
 }
-
-case class Node(host: String, port: Int)

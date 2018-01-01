@@ -13,6 +13,7 @@ libraryDependencies ++= Seq(
   "com.h2database"             % "h2"                           % "1.4.196",
   "ch.qos.logback"             % "logback-classic"              % "1.2.3",
   "com.zaxxer"                 % "HikariCP"                     % "2.7.4",
+  "com.typesafe.akka"         %% "akka-actor"                   % "2.5.8",
   "com.enragedginger"         %% "akka-quartz-scheduler"        % "1.6.1-akka-2.5.x",
   "org.eclipse.jetty"          % "jetty-webapp"                 % "9.4.7.v20170914" % "container",
   "org.eclipse.jetty"          %  "jetty-plus"                  % "9.4.7.v20170914" % "container",
