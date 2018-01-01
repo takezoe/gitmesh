@@ -1,6 +1,6 @@
 package com.github.takezoe.dgit.controller
 
-import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedQueue}
+import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
@@ -9,7 +9,9 @@ class Nodes {
   val nodes = new ConcurrentHashMap[Node, Long]()
 
   def add(node: Node): Unit = {
-    println("Added a repository node: " + node.host + ":" + node.port) // TODO debug
+    if(!nodes.containsKey(node)){
+      println("Added a repository node: " + node.host + ":" + node.port) // TODO debug
+    }
     nodes.put(node, System.currentTimeMillis())
   }
 
