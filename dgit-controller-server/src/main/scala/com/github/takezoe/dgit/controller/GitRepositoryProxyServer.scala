@@ -1,6 +1,5 @@
 package com.github.takezoe.dgit.controller
 
-import java.io.PipedInputStream
 import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
 import scala.collection.JavaConverters._
@@ -13,14 +12,30 @@ class GitRepositoryProxyServer extends HttpServlet {
   private val client = new OkHttpClient()
 
   override def doPost(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
-    Nodes.selectNode("xxxx").map { node =>
-      // TODO Proxy request
-    }.getOrElse {
+    println("**** doPost ****")
+    println(req.getRequestURI)
+    println(req.getRequestURL)
+
+    val path = req.getRequestURI
+    val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
+
+    println("repo name: " + repositoryName)
+
+    val contextPath = req.getServletContext.getContextPath
+
+    println(contextPath)
+    println("--")
+
+    val nodes = Nodes.selectNodes(repositoryName)
+    if(nodes.nonEmpty){
+      // TODO Proxy to all selected hosts
+    } else {
       // TODO NotFound
     }
   }
 
   override def doGet(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
+    println("**** doGet ****")
     println(req.getRequestURI)
     println(req.getRequestURL)
 
