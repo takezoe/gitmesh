@@ -28,10 +28,12 @@ object Nodes {
   }
 
   def selectNode(repository: String): Option[Node] = {
-    None
+    // TODO Not implemented yet
+    Some(nodes.entrySet().asScala.head.getKey)
   }
 
   def selectNodes(repository: String): Seq[Node] = {
+    // TODO Not implemented yet
     Nil
   }
 

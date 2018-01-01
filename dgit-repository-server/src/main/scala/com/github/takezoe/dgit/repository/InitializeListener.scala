@@ -39,9 +39,10 @@ class InitializeListener extends ServletContextListener {
 
 class HeartBeatActor extends Actor {
 
+  private val client = new OkHttpClient()
+
   override def receive: Receive = {
     case controllerUrl: String => {
-      val client = new OkHttpClient()
       val request = new Request.Builder()
         .url(controllerUrl + "/api/nodes/join")
         .post(RequestBody.create(HttpClientSupport.ContentType_JSON, JsonUtils.serialize(Node("localhost", 8081)))) // TODO

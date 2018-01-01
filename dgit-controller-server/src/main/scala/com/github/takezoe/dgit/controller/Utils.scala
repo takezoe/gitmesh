@@ -1,4 +1,4 @@
-package com.github.takezoe.dgit.repository
+package com.github.takezoe.dgit.controller
 
 object Utils {
 
