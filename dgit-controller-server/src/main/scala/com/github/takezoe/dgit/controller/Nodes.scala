@@ -13,21 +13,21 @@ object Nodes extends HttpClientSupport {
   private val nodes = new ConcurrentHashMap[String, NodeStatus]()
   private val primaryNodeOfRepository = new ConcurrentHashMap[String, String]()
 
-  def updateNodeStatus(endpoint: String, diskUsage: Double, repos: Seq[String]): Unit = {
-    if(!nodes.containsKey(endpoint)){
-      println(s"[INFO] Added a repository node: $endpoint") // TODO debug
+  def updateNodeStatus(node: String, diskUsage: Double, repos: Seq[String]): Unit = {
+    if(!nodes.containsKey(node)){
+      println(s"[INFO] Added a repository node: $node") // TODO debug
     }
-    nodes.put(endpoint, NodeStatus(System.currentTimeMillis(), diskUsage, repos))
+    nodes.put(node, NodeStatus(System.currentTimeMillis(), diskUsage, repos))
 
     // Set a primary node of repositories
     repos.foreach { repository =>
       Option(primaryNodeOfRepository.get(repository)) match {
         case None =>
-          primaryNodeOfRepository.put(repository, endpoint)
+          primaryNodeOfRepository.put(repository, node)
 
         case Some(primaryEndpoint) =>
           httpPutJson[String](
-            s"$endpoint/api/repos/$repository",
+            s"$node/api/repos/$repository",
             CloneRequest(s"$primaryEndpoint/git/$repository.git")
           ) match {
             case Right(_) =>
@@ -37,15 +37,15 @@ object Nodes extends HttpClientSupport {
     }
   }
 
-  def removeNode(endpoint: String): Unit = {
-    nodes.remove(endpoint)
+  def removeNode(node: String): Unit = {
+    nodes.remove(node)
 
-    primaryNodeOfRepository.forEach { case (repository, primaryEndpoint) =>
-      if(endpoint == primaryEndpoint){
+    primaryNodeOfRepository.forEach { case (repository, primaryNode) =>
+      if(node == primaryNode){
         nodes.asScala.find { case (_, status) => status.repos.contains(repository) } match {
-          case Some((newEndpoint, _)) => {
+          case Some((newNode, _)) => {
             // Update the primary node
-            primaryNodeOfRepository.put(repository, newEndpoint)
+            primaryNodeOfRepository.put(repository, newNode)
           }
           case None => {
             println(s"[ERROR] All nodes for $repository has been retired.") // TODO debug
@@ -60,8 +60,8 @@ object Nodes extends HttpClientSupport {
     nodes.asScala.toSeq
   }
 
-  def getTimestamp(endpoint: String): Option[Long] = {
-    Option(nodes.get(endpoint)).map(_.timestamp)
+  def getTimestamp(node: String): Option[Long] = {
+    Option(nodes.get(node)).map(_.timestamp)
   }
 
   def selectNode(repository: String): Option[String] = {
@@ -69,10 +69,26 @@ object Nodes extends HttpClientSupport {
   }
 
   def selectNodes(repository: String): Seq[String] = {
-    nodes.asScala.collect { case (endpoint, status) if status.repos.contains(repository) => endpoint }.toSeq
+    nodes.asScala.collect { case (node, status) if status.repos.contains(repository) => node }.toSeq
+  }
+
+  def selectAvailableNode(): Option[String] = ???
+
+  def allRepositories(): Seq[Repository] = {
+    nodes.asScala.toSeq
+      .flatMap { case (node, status) => status.repos.map { name => (name, node) } }
+      .groupBy { case (name, _) => name }
+      .map { case (name, nodes) =>
+        Repository(
+          name,
+          selectNode(name).get, // TODO Don't use Option.get!
+          nodes.map { case (_, node) => node }
+        )
+      }
+      .toSeq
   }
 
 }
 
-//case class Node(endpoint: String)
+case class Repository(name: String, primaryNode: String, nodes: Seq[String])
 case class NodeStatus(timestamp: Long, diskUsage: Double, repos: Seq[String])

@@ -6,14 +6,14 @@ import models.Node
 class APIController(config: Config) extends HttpClientSupport {
 
   @Action(method = "POST", path = "/api/nodes/join")
-  def joinRepositoryNode(node: models.Node): Unit = {
-    Nodes.updateNodeStatus(node.endpoint, node.diskUsage, node.repos)
+  def joinRepositoryNode(node: Node): Unit = {
+    Nodes.updateNodeStatus(node.node, node.diskUsage, node.repos)
   }
 
   @Action(method = "GET", path = "/api/nodes")
   def listNodes(): Seq[Node] = {
-    Nodes.allNodes().map { case (endpoint, status) =>
-      models.Node(endpoint, status.diskUsage, status.repos)
+    Nodes.allNodes().map { case (node, status) =>
+      models.Node(node, status.diskUsage, status.repos)
     }
   }
 
@@ -24,10 +24,10 @@ class APIController(config: Config) extends HttpClientSupport {
       .take(config.replica)
 
     if(nodes.nonEmpty){
-      nodes.foreach { case (endpoint, status) =>
-        httpPost(s"$endpoint/api/repos/${name}", Map.empty)
+      nodes.foreach { case (node, status) =>
+        httpPost(s"$node/api/repos/${name}", Map.empty)
         // update repository status immediately
-        Nodes.updateNodeStatus(endpoint, status.diskUsage, status.repos :+ name)
+        Nodes.updateNodeStatus(node, status.diskUsage, status.repos :+ name)
       }
     } else {
       throw new RuntimeException("There are no nodes which can accommodate a new repository")
