@@ -49,10 +49,9 @@ class GitRepositoryProxyServer extends HttpServlet {
     println(contextPath)
     println("--")
 
-    Nodes.selectNode(repositoryName).map { node =>
-      val url = "http://" + node.host + ":" + node.port + path
+    Nodes.selectNode(repositoryName).map { endpoint =>
       val builder = new Request.Builder()
-          .url(url)
+          .url(endpoint)
 
       req.getHeaderNames.asScala.foreach { name =>
         builder.addHeader(name, req.getHeader(name))

@@ -1,7 +1,6 @@
 package com.github.takezoe.dgit.repository
 
 import java.io.File
-import java.nio.file.Files
 import javax.servlet.{ServletContextEvent, ServletContextListener}
 import javax.servlet.annotation.WebListener
 
@@ -48,12 +47,13 @@ class HeartBeatActor extends Actor {
       val config = Config.load()
       val dir = new File(config.dir)
       val diskUsage = dir.getFreeSpace.toDouble / dir.getTotalSpace.toDouble
+      val repos = dir.listFiles(_.isDirectory).toSeq.map(_.getName)
 
       val request = new Request.Builder()
         .url(config.controllerUrl + "/api/nodes/join")
         .post(
           RequestBody.create(HttpClientSupport.ContentType_JSON,
-          JsonUtils.serialize(Node("http://localhost:8081", diskUsage)))
+          JsonUtils.serialize(Node("http://localhost:8081", diskUsage, repos)))
         ) // TODO
         .build()
       try {

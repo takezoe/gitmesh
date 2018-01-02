@@ -6,7 +6,7 @@ class APIController(config: Config) {
 
   @Action(method = "POST", path = "/api/nodes/join")
   def joinRepositoryNode(node: models.Node): Unit = {
-    Nodes.updateNodeInfo(node.endpoint, node.diskUsage)
+    Nodes.updateNodeStatus(node.endpoint, node.diskUsage, node.repos)
   }
 
   @Action(method = "GET", path = "/api/nodes")
