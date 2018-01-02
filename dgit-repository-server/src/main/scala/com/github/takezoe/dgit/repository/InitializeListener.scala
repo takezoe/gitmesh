@@ -1,5 +1,7 @@
 package com.github.takezoe.dgit.repository
 
+import java.io.File
+import java.nio.file.Files
 import javax.servlet.{ServletContextEvent, ServletContextListener}
 import javax.servlet.annotation.WebListener
 
@@ -32,7 +34,7 @@ class InitializeListener extends ServletContextListener {
 
     val system = ActorSystem("mySystem")
     val scheduler = QuartzSchedulerExtension(system)
-    scheduler.schedule("Every30Seconds", system.actorOf(Props[HeartBeatActor]), config.controllerUrl)
+    scheduler.schedule("Every30Seconds", system.actorOf(Props[HeartBeatActor]), "tick")
   }
 
 }
@@ -42,13 +44,24 @@ class HeartBeatActor extends Actor {
   private val client = new OkHttpClient()
 
   override def receive: Receive = {
-    case controllerUrl: String => {
+    case _ => {
+      val config = Config.load()
+      val dir = new File(config.dir)
+      val diskUsage = dir.getFreeSpace.toDouble / dir.getTotalSpace.toDouble
+
       val request = new Request.Builder()
-        .url(controllerUrl + "/api/nodes/join")
-        .post(RequestBody.create(HttpClientSupport.ContentType_JSON, JsonUtils.serialize(Node("localhost", 8081)))) // TODO
+        .url(config.controllerUrl + "/api/nodes/join")
+        .post(
+          RequestBody.create(HttpClientSupport.ContentType_JSON,
+          JsonUtils.serialize(Node("http://localhost:8081", diskUsage)))
+        ) // TODO
         .build()
-      val response = client.newCall(request).execute
-      println(response.body.string) // TODO debug
+      try {
+        val response = client.newCall(request).execute
+        println(response.body.string) // TODO debug
+      } catch {
+        case e: Exception => println(e.toString) // TODO debug
+      }
     }
   }
 

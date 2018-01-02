@@ -6,37 +6,38 @@ import scala.collection.JavaConverters._
 
 object Nodes {
 
-  val nodes = new ConcurrentHashMap[Node, Long]()
+  val nodes = new ConcurrentHashMap[String, NodeStatus]()
 
-  def add(node: Node): Unit = {
-    if(!nodes.containsKey(node)){
-      println("Added a repository node: " + node.host + ":" + node.port) // TODO debug
+  def updateNodeInfo(endpoint: String, diskUsage: Double): Unit = {
+    if(!nodes.containsKey(endpoint)){
+      println("Added a repository node: " + endpoint) // TODO debug
     }
-    nodes.put(node, System.currentTimeMillis())
+    nodes.put(endpoint, NodeStatus(System.currentTimeMillis(), diskUsage))
   }
 
-  def remove(node: Node): Unit = {
-    nodes.remove(node)
+  def removeNode(emdpoint: String): Unit = {
+    nodes.remove(emdpoint)
   }
 
-  def all(): Seq[Node] = {
+  def allNodes(): Seq[String] = {
     nodes.asScala.keys.toSeq
   }
 
-  def timestamp(node: Node): Option[Long] = {
-    Option(nodes.get(node))
+  def getTimestamp(endpoint: String): Option[Long] = {
+    Option(nodes.get(endpoint)).map(_.timestamp)
   }
 
-  def selectNode(repository: String): Option[Node] = {
+  def selectNode(repository: String): Option[String] = {
     // TODO Not implemented yet
     Some(nodes.entrySet().asScala.head.getKey)
   }
 
-  def selectNodes(repository: String): Seq[Node] = {
+  def selectNodes(repository: String): Seq[String] = {
     // TODO Not implemented yet
     Nil
   }
 
 }
 
-case class Node(host: String, port: Int)
+//case class Node(endpoint: String)
+case class NodeStatus(timestamp: Long, diskUsage: Double)

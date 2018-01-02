@@ -9,12 +9,12 @@ import com.github.takezoe.dgit.repository.models.Result
 
 class APIController(config: Config) {
 
-  @Action(method="GET", path = "/api/healthCheck")
-  def healthCheck(): Result = {
+  @Action(method="GET", path = "/")
+  def status(): Result = {
     Result("OK")
   }
 
-  @Action(method="POST", path = "/api/create/{name}")
+  @Action(method="POST", path = "/api/repos/{name}")
   def createRepository(name: String): Unit = {
     println("Creating repository: " + name)
     using(new RepositoryBuilder().setGitDir(new File(config.dir, name)).setBare.build){ repository =>
@@ -23,6 +23,12 @@ class APIController(config: Config) {
       config.setBoolean("http", null, "receivepack", true)
       config.save
     }
+  }
+
+  @Action(method = "GET", path = "/api/repos")
+  def listRepositories(): Seq[String] = {
+    val file = new File(config.dir)
+    file.listFiles(_.isDirectory).toSeq.map(_.getName)
   }
 
   def cloneRepository() = {

@@ -1,3 +1,3 @@
-package com.github.takezoe.dgit.repository.models
+package com.github.takezoe.dgit.controller.models
 
 case class Node(endpoint: String, diskUsage: Double)
