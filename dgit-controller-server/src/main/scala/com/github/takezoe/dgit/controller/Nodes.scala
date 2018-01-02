@@ -40,8 +40,8 @@ object Nodes {
     }
   }
 
-  def allNodes(): Seq[String] = {
-    nodes.asScala.keys.toSeq
+  def allNodes(): Seq[(String, NodeStatus)] = {
+    nodes.asScala.toSeq
   }
 
   def getTimestamp(endpoint: String): Option[Long] = {

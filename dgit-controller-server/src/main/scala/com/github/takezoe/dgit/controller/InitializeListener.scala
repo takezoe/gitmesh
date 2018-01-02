@@ -14,7 +14,7 @@ class InitializeListener extends ServletContextListener {
   }
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
-    val config = Config(2, 1.0d)
+    val config = Config(2, 0.9d)
 
     Resty.register(new APIController(config))
 
@@ -30,12 +30,10 @@ class CheckRepositoryNodeActor() extends Actor {
   override def receive = {
     case _ => {
       val timeout = System.currentTimeMillis() - (5 * 60 * 1000)
-      Nodes.allNodes().foreach { endpoint =>
-        Nodes.getTimestamp(endpoint).foreach { timestamp =>
-          if(timestamp < timeout){
-            println(endpoint + " is retired.") // TODO
-            Nodes.removeNode(endpoint)
-          }
+      Nodes.allNodes().foreach { case (endpoint, status) =>
+        if(status.timestamp < timeout){
+          println(endpoint + " is retired.") // TODO
+          Nodes.removeNode(endpoint)
         }
       }
     }
