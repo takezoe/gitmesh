@@ -26,6 +26,9 @@ class APIController(config: Config) extends HttpClientSupport {
       nodes.foreach { endpoint =>
         httpPost(s"$endpoint/api/repos/${name}", Map.empty)
       }
+
+      // TODO update repository status in Nodes immediately
+
     } else {
       throw new RuntimeException("There are no nodes which can accommodate a new repository")
     }
