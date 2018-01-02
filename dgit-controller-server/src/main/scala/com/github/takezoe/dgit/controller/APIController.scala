@@ -19,16 +19,15 @@ class APIController(config: Config) extends HttpClientSupport {
   @Action(method="POST", path = "/api/repos/{name}")
   def createRepository(name: String): Unit = {
     val nodes = Nodes.allNodes()
-      .collect { case (endpoint, status) if status.diskUsage < config.maxDiskUsage => endpoint }
+      .filter { case (endpoint, status) => status.diskUsage < config.maxDiskUsage }
       .take(config.replica)
 
     if(nodes.nonEmpty){
-      nodes.foreach { endpoint =>
+      nodes.foreach { case (endpoint, status) =>
         httpPost(s"$endpoint/api/repos/${name}", Map.empty)
+        // update repository status immediately
+        Nodes.updateNodeStatus(endpoint, status.diskUsage, status.repos :+ name)
       }
-
-      // TODO update repository status in Nodes immediately
-
     } else {
       throw new RuntimeException("There are no nodes which can accommodate a new repository")
     }
