@@ -34,7 +34,7 @@ Git repositories are available at `/git/REPOSITORY_NAME.git`
 
 ### Clone an another repository
 
-- Endpoint: `POST /api/repos/REPOSITORY_NAME/clone`
+- Endpoint: `PUT /api/repos/REPOSITORY_NAME`
 - Request:
   ```javascript
   {

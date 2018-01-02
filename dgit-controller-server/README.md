@@ -13,12 +13,6 @@ Git repositories are available at `/git/REPOSITORY_NAME.git`
 - Request: None
 - Response:
 
-### Get a repository information
-
-- Endpoint: `GET /api/repos/REPOSITORY_NAME`
-- Request: None
-- Response:
-
 ### Create a repository
 
 - Endpoint: `POST /api/repos/REPOSITORY_NAME`
@@ -35,4 +29,10 @@ Git repositories are available at `/git/REPOSITORY_NAME.git`
 
 - Endpoint: `GET /api/nodes`
 - Request: None
+- Response:
+
+### Join node
+
+- Endpoint: `GET /api/nodes/join`
+- Request: 
 - Response:
