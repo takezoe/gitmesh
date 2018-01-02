@@ -5,7 +5,7 @@ import java.io.File
 import com.github.takezoe.resty._
 import org.eclipse.jgit.lib.RepositoryBuilder
 import Utils._
-import com.github.takezoe.dgit.repository.models.Result
+import com.github.takezoe.dgit.repository.models.{Result, CloneRequest}
 
 class APIController(config: Config) {
 
@@ -31,8 +31,10 @@ class APIController(config: Config) {
     file.listFiles(_.isDirectory).toSeq.map(_.getName)
   }
 
-  def cloneRepository() = {
-
+  @Action(method = "PUT", path = "/api/repos/{name}")
+  def cloneRepository(name: String, request: CloneRequest) = {
+    // TODO Not implemented yet
+    println(request.source)
   }
 
 }

@@ -31,10 +31,10 @@ class GitRepositoryProxyServer extends HttpServlet {
         req.getHeaderNames.asScala.foreach { name =>
           builder.addHeader(name, req.getHeader(name))
         }
-
         builder.post(RequestBody.create(MediaType.parse(req.getContentType), tmpFile))
 
         val request = builder.build()
+        // TODO if request failed, remove the node and try other nodes
         val response = client.newCall(request).execute()
 
         if(i == 0){
@@ -65,6 +65,7 @@ class GitRepositoryProxyServer extends HttpServlet {
       }
 
       val request = builder.build()
+      // TODO if request failed, remove the node and try other nodes
       val response = client.newCall(request).execute()
 
       response.headers().names().asScala.foreach { name =>

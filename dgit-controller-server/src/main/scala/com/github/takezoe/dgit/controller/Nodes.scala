@@ -2,10 +2,13 @@ package com.github.takezoe.dgit.controller
 
 import java.util.concurrent.ConcurrentHashMap
 
+import com.github.takezoe.resty.HttpClientSupport
+
 import scala.collection.JavaConverters._
+import models.CloneRequest
 
 // TODO Should be a class?
-object Nodes {
+object Nodes extends HttpClientSupport {
 
   private val nodes = new ConcurrentHashMap[String, NodeStatus]()
   private val primaryNodeOfRepository = new ConcurrentHashMap[String, String]()
@@ -18,8 +21,18 @@ object Nodes {
 
     // Set a primary node of repositories
     repos.foreach { repository =>
-      if(!primaryNodeOfRepository.contains(repository)){
-        primaryNodeOfRepository.put(repository, endpoint)
+      Option(primaryNodeOfRepository.get(repository)) match {
+        case None =>
+          primaryNodeOfRepository.put(repository, endpoint)
+
+        case Some(primaryEndpoint) =>
+          httpPutJson[String](
+            s"$endpoint/api/repos/$repository",
+            CloneRequest(s"$primaryEndpoint/git/$repository.git")
+          ) match {
+            case Right(_) =>
+            case Left(e) => println(e.errors) // TODO What to do in this case?
+          }
       }
     }
   }
@@ -30,7 +43,10 @@ object Nodes {
     primaryNodeOfRepository.forEach { case (repository, primaryEndpoint) =>
       if(endpoint == primaryEndpoint){
         nodes.asScala.find { case (_, status) => status.repos.contains(repository) } match {
-          case Some((newEndpoint, _)) => primaryNodeOfRepository.put(repository, newEndpoint)
+          case Some((newEndpoint, _)) => {
+            // Update the primary node
+            primaryNodeOfRepository.put(repository, newEndpoint)
+          }
           case None => {
             println(s"[ERROR] All nodes for $repository has been retired.") // TODO debug
             primaryNodeOfRepository.remove(repository)

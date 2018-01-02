@@ -1,6 +1,7 @@
 package com.github.takezoe.dgit.controller
 
 import com.github.takezoe.resty.{Action, HttpClientSupport}
+import models.Node
 
 class APIController(config: Config) extends HttpClientSupport {
 
@@ -10,7 +11,7 @@ class APIController(config: Config) extends HttpClientSupport {
   }
 
   @Action(method = "GET", path = "/api/nodes")
-  def listNodes(): Seq[models.Node] = {
+  def listNodes(): Seq[Node] = {
     Nodes.allNodes().map { case (endpoint, status) =>
       models.Node(endpoint, status.diskUsage, status.repos)
     }
@@ -19,7 +20,7 @@ class APIController(config: Config) extends HttpClientSupport {
   @Action(method="POST", path = "/api/repos/{name}")
   def createRepository(name: String): Unit = {
     val nodes = Nodes.allNodes()
-      .filter { case (endpoint, status) => status.diskUsage < config.maxDiskUsage }
+      .filter { case (_, status) => status.diskUsage < config.maxDiskUsage }
       .take(config.replica)
 
     if(nodes.nonEmpty){
