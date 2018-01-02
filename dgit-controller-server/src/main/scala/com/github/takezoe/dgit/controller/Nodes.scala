@@ -53,8 +53,7 @@ object Nodes {
   }
 
   def selectNodes(repository: String): Seq[String] = {
-    // TODO Not implemented yet
-    Nil
+    nodes.asScala.collect { case (endpoint, status) if status.repos.contains(repository) => endpoint }.toSeq
   }
 
 }
