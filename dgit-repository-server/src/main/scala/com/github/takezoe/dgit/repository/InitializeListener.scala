@@ -36,7 +36,7 @@ class HeartBeatActor extends Actor with HttpClientSupport {
       val repos = dir.listFiles(_.isDirectory).toSeq.map(_.getName)
 
       httpPostJson[String](
-        config.controllerUrl + "/api/nodes/join",
+        s"${config.controllerUrl}/api/nodes/join",
         Node("http://localhost:8081", diskUsage, repos)
       ) match {
         case Right(_) => // success

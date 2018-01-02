@@ -32,12 +32,10 @@ class CheckRepositoryNodeActor() extends Actor {
       val timeout = System.currentTimeMillis() - (5 * 60 * 1000)
       Nodes.allNodes().foreach { case (endpoint, status) =>
         if(status.timestamp < timeout){
-          println(endpoint + " is retired.") // TODO
+          println(s"$endpoint is retired.") // TODO debug
           Nodes.removeNode(endpoint)
         }
       }
     }
   }
 }
-
-case class Result(result: String)
