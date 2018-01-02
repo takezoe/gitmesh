@@ -1,4 +1,4 @@
-dgit-repository-server
+dgit-controller-server
 ========
 
 ## Git repository
@@ -12,33 +12,27 @@ Git repositories are available at `/git/REPOSITORY_NAME.git`
 - Endpoint: `GET /api/repos`
 - Request: None
 - Response:
-  ```javascript
-  [
-    "repo1",
-    "repo2",
-    ...
-  ]
-  ```
+
+### Get a repository information
+
+- Endpoint: `GET /api/repos/REPOSITORY_NAME`
+- Request: None
+- Response:
 
 ### Create a repository
 
 - Endpoint: `POST /api/repos/REPOSITORY_NAME`
 - Request: None
-- Response: None
+- Response:
 
 ### Delete a repository
 
 - Endpoint: `DELETE /api/repos/REPOSITORY_NAME`
 - Request: None
-- Response: None
+- Response:
 
-### Clone an another repository
+### List nodes
 
-- Endpoint: `POST /api/repos/REPOSITORY_NAME/clone`
-- Request:
-  ```javascript
-  {
-    "source": "http://host:port/git/repository.git"
-  }
-  ```
-- Response: None
+- Endpoint: `GET /api/nodes`
+- Request: None
+- Response:
