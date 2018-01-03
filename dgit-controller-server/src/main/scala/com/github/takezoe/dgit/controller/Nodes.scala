@@ -6,16 +6,18 @@ import com.github.takezoe.resty.HttpClientSupport
 
 import scala.collection.JavaConverters._
 import models.CloneRequest
+import org.slf4j.LoggerFactory
 
 // TODO Should be a class?
 object Nodes extends HttpClientSupport {
 
+  private val log = LoggerFactory.getLogger(getClass)
   private val nodes = new ConcurrentHashMap[String, NodeStatus]()
   private val primaryNodeOfRepository = new ConcurrentHashMap[String, String]()
 
   def updateNodeStatus(node: String, diskUsage: Double, repos: Seq[String]): Unit = {
     if(!nodes.containsKey(node)){
-      println(s"[INFO] Added a repository node: $node") // TODO debug
+      log.info(s"Added a repository node: $node")
     }
     nodes.put(node, NodeStatus(System.currentTimeMillis(), diskUsage, repos))
 
@@ -31,7 +33,7 @@ object Nodes extends HttpClientSupport {
             CloneRequest(s"$primaryEndpoint/git/$repository.git")
           ) match {
             case Right(_) =>
-            case Left(e) => println(e.errors) // TODO What to do in this case?
+            case Left(e) => log.error(e.errors.mkString("\n")) // TODO What to do in this case?
           }
       }
     }
@@ -48,7 +50,7 @@ object Nodes extends HttpClientSupport {
             primaryNodeOfRepository.put(repository, newNode)
           }
           case None => {
-            println(s"[ERROR] All nodes for $repository has been retired.") // TODO debug
+            log.error(s"All nodes for $repository has been retired.")
             primaryNodeOfRepository.remove(repository)
           }
         }
@@ -60,9 +62,9 @@ object Nodes extends HttpClientSupport {
     nodes.asScala.toSeq
   }
 
-  def getTimestamp(node: String): Option[Long] = {
-    Option(nodes.get(node)).map(_.timestamp)
-  }
+//  def getTimestamp(node: String): Option[Long] = {
+//    Option(nodes.get(node)).map(_.timestamp)
+//  }
 
   def selectNode(repository: String): Option[String] = {
     Option(primaryNodeOfRepository.get(repository))

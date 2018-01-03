@@ -6,10 +6,11 @@ import javax.servlet.annotation.WebListener
 import com.github.takezoe.resty._
 import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
 import akka.actor._
+import akka.event.Logging
 import models.CloneRequest
 
-import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global // TODO
 
 @WebListener
@@ -32,13 +33,16 @@ class InitializeListener extends ServletContextListener {
 }
 
 class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupport {
+
+  private val log = Logging(context.system, this)
+
   override def receive = {
     case _ => {
       // Check died nodes
       val timeout = System.currentTimeMillis() - (5 * 60 * 1000)
       Nodes.allNodes().foreach { case (node, status) =>
         if(status.timestamp < timeout){
-          println(s"$node is retired.") // TODO debug
+          log.warning(s"$node is retired.")
           Nodes.removeNode(node)
         }
       }
@@ -66,9 +70,10 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
         }
 
       val f = Future.sequence(futures)
+
       // TODO Error handling
-      val results = Await.result(f, Duration.Inf)
-      println("Results of creation replica: " + results) // TODO debug
+      val results = Await.result(f, 10.minutes)
+      log.debug(s"Results of creating replicas: $results")
     }
   }
 }
