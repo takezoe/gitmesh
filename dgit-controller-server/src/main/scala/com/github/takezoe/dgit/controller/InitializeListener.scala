@@ -40,28 +40,28 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
     case _ => {
       // Check died nodes
       val timeout = System.currentTimeMillis() - (5 * 60 * 1000)
-      Nodes.allNodes().foreach { case (node, status) =>
+      NodeManager.allNodes().foreach { case (node, status) =>
         if(status.timestamp < timeout){
           log.warning(s"$node is retired.")
-          Nodes.removeNode(node)
+          NodeManager.removeNode(node)
         }
       }
 
       // Add replica in parallel
-      val futures = Nodes.allRepositories()
+      val futures = NodeManager.allRepositories()
         .filter { repository => repository.nodes.size < config.replica }
         .flatMap { repository =>
           (1 to config.replica - repository.nodes.size).flatMap { _ =>
-            Nodes.selectAvailableNode().map { replicaNode =>
+            NodeManager.selectAvailableNode().map { replicaNode =>
               httpPutJsonAsync(
                 s"$replicaNode/api/repos/${repository.name}",
                 CloneRequest(s"${repository.primaryNode}/git/${repository.name}.git")
               ).map { result =>
                 // Update node status
-                Nodes.allNodes()
+                NodeManager.allNodes()
                   .find { case (node, _) => node == replicaNode }
                   .foreach { case (node, status) =>
-                    Nodes.updateNodeStatus(node, status.diskUsage, status.repos :+ repository.name)
+                    NodeManager.updateNodeStatus(node, status.diskUsage, status.repos :+ repository.name)
                   }
                 result
               }

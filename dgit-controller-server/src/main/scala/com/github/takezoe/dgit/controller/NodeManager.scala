@@ -9,7 +9,7 @@ import models.CloneRequest
 import org.slf4j.LoggerFactory
 
 // TODO Should be a class?
-object Nodes extends HttpClientSupport {
+object NodeManager extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(getClass)
   private val nodes = new ConcurrentHashMap[String, NodeStatus]()

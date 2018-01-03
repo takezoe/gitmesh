@@ -1,6 +1,6 @@
 package com.github.takezoe.dgit.controller
 
-import java.io.{File, FileInputStream, FileOutputStream}
+import java.io.{File, FileOutputStream}
 import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
 import scala.collection.JavaConverters._
@@ -16,7 +16,7 @@ class GitRepositoryProxyServer extends HttpServlet {
     val path = req.getRequestURI
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
-    val nodes = Nodes.selectNodes(repositoryName)
+    val nodes = NodeManager.selectNodes(repositoryName)
 
     if(nodes.nonEmpty){
       val tmpFile = File.createTempFile("dgit", "tmpfile")
@@ -59,7 +59,7 @@ class GitRepositoryProxyServer extends HttpServlet {
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
-    Nodes.selectNode(repositoryName).map { endpoint =>
+    NodeManager.selectNode(repositoryName).map { endpoint =>
       val builder = new Request.Builder().url(endpoint + path + (if(queryString == null) "" else "?" + queryString))
 
       req.getHeaderNames.asScala.foreach { name =>
