@@ -15,7 +15,11 @@ import scala.concurrent.ExecutionContext.Implicits.global // TODO
 @WebListener
 class InitializeListener extends ServletContextListener {
 
+  private val system = ActorSystem("mySystem")
+
   override def contextDestroyed(sce: ServletContextEvent): Unit = {
+    val f = system.terminate()
+    Await.result(f, 30.seconds)
   }
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
@@ -23,7 +27,6 @@ class InitializeListener extends ServletContextListener {
 
     Resty.register(new APIController(config))
 
-    val system = ActorSystem("mySystem")
     val scheduler = QuartzSchedulerExtension(system)
     scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[CheckRepositoryNodeActor], config)), "tick")
 

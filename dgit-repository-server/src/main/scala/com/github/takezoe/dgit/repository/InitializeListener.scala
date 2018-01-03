@@ -17,7 +17,6 @@ class InitializeListener extends ServletContextListener {
 
   private val system = ActorSystem("mySystem")
 
-
   override def contextDestroyed(sce: ServletContextEvent): Unit = {
     val f = system.terminate()
     Await.result(f, 30.seconds)
