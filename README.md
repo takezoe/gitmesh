@@ -15,4 +15,6 @@ distributed-git-server cluster consists of following two components:
 
   This is a storage server of distributed-git-server cluster. Git repositories are located on this kind of servers actually. We can add any number of repository server instances to distributed-git-server cluster.
 
+![Architecture](architecture.png)
+
 distributed-git-server is still under development. I will add more detailed architecture documentation, and instruction how to setup.
