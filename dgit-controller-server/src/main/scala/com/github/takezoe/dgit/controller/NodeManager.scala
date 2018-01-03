@@ -20,12 +20,13 @@ object NodeManager extends HttpClientSupport {
     }
     nodes.put(node, NodeStatus(System.currentTimeMillis(), diskUsage, repos))
 
-    // Set a primary node of repositories
     repos.foreach { repository =>
       Option(primaryNodeOfRepository.get(repository)) match {
+        // Set the primary node of repositories if it doesn't exist
         case None =>
           primaryNodeOfRepository.put(repository, node)
 
+        // Synchronize with the primary repository if it exists
         case Some(primaryEndpoint) =>
           httpPutJson[String](
             s"$node/api/repos/$repository",
