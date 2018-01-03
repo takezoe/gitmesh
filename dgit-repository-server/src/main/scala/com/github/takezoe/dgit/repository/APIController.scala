@@ -22,7 +22,7 @@ class APIController(config: Config) {
   def createRepository(name: String): Unit = {
     log.info(s"Create repository: $name")
 
-    using(new RepositoryBuilder().setGitDir(new File(config.dir, name)).setBare.build){ repository =>
+    using(new RepositoryBuilder().setGitDir(new File(config.directory, name)).setBare.build){ repository =>
       repository.create(true)
       val config = repository.getConfig
       config.setBoolean("http", null, "receivepack", true)
@@ -32,7 +32,7 @@ class APIController(config: Config) {
 
   @Action(method = "GET", path = "/api/repos")
   def listRepositories(): Seq[String] = {
-    val rootDir = new File(config.dir)
+    val rootDir = new File(config.directory)
     rootDir.listFiles(_.isDirectory).toSeq.map(_.getName)
   }
 
@@ -40,7 +40,7 @@ class APIController(config: Config) {
   def cloneRepository(name: String, request: CloneRequest): Unit = {
     log.info(s"Synchronize repository: $name with ${request.source}")
 
-    val rootDir = new File(config.dir)
+    val rootDir = new File(config.directory)
     val repositoryDir = new File(rootDir, name)
 
     // Delete the repository directory if it exists

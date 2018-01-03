@@ -1,13 +1,18 @@
 package com.github.takezoe.dgit.repository
 
+import com.typesafe.config.ConfigFactory
+
 case class Config(
-  dir: String,
+  directory: String,
   controllerUrl: String
 )
 
 object Config {
-  // TODO load from the configuration file and keep instance as singleton
   def load(): Config = {
-    Config("/tmp/dgit/node1", "http://localhost:8080")
+    val c = ConfigFactory.load()
+    Config(
+      directory = c.getString("dgit.directory"),
+      controllerUrl = c.getString("dgit.controllerUrl")
+    )
   }
 }

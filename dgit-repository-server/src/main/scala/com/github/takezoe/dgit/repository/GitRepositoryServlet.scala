@@ -12,7 +12,7 @@ class GitRepositoryServlet extends GitServlet {
   override def init(config: ServletConfig): Unit = {
     val dataNodeConfig = Config.load()
 
-    val root: File = new File(dataNodeConfig.dir)
+    val root: File = new File(dataNodeConfig.directory)
     setRepositoryResolver(new FileResolver2[HttpServletRequest](root, true))
 
     super.init(config)
