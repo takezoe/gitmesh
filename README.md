@@ -9,7 +9,7 @@ distributed-git-server cluster consists of following two components:
 
 - Controller server
 
-  This is a front server of distributed-git-server cluster. It manages repository servers and receive requests from git clients and proxy these requests to appropriate repository servers. We can make redundant it by setup multiple instances with a load balancer. 
+  This is a front server of distributed-git-server cluster. It manages repository servers and proxy requests fron git clientsto appropriate repository servers. We can make redundant it by setup multiple instances with a load balancer. 
 
 - Repository server
 
