@@ -7,7 +7,6 @@ import com.github.takezoe.resty._
 import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
 import akka.actor._
 import akka.event.Logging
-import models.CloneRequest
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
@@ -20,7 +19,7 @@ class InitializeListener extends ServletContextListener {
   }
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
-    val config = Config(2, 0.9d)
+    val config = Config.load() //(2, 0.9d)
 
     Resty.register(new APIController(config))
 

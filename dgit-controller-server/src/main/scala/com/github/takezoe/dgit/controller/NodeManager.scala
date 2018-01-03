@@ -5,7 +5,6 @@ import java.util.concurrent.ConcurrentHashMap
 import com.github.takezoe.resty.HttpClientSupport
 
 import scala.collection.JavaConverters._
-import models.CloneRequest
 import org.slf4j.LoggerFactory
 
 // TODO Should be a class?
@@ -61,10 +60,6 @@ object NodeManager extends HttpClientSupport {
   def allNodes(): Seq[(String, NodeStatus)] = {
     nodes.asScala.toSeq
   }
-
-//  def getTimestamp(node: String): Option[Long] = {
-//    Option(nodes.get(node)).map(_.timestamp)
-//  }
 
   def selectNode(repository: String): Option[String] = {
     Option(primaryNodeOfRepository.get(repository))
