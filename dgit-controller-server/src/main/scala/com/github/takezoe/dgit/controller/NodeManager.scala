@@ -27,6 +27,8 @@ object NodeManager extends HttpClientSupport {
           primaryNodeOfRepository.put(repository, node)
 
         // Synchronize with the primary repository if it exists
+        // TODO If added repository is latest, no need to synchronize.
+        // TODO It should be added any stuff to judge it to reduce waste of time to synchronization.
         case Some(primaryEndpoint) =>
           httpPutJson[String](
             s"$node/api/repos/$repository",
