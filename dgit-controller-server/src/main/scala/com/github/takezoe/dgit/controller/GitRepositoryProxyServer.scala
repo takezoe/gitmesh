@@ -7,9 +7,11 @@ import scala.collection.JavaConverters._
 import okhttp3.{MediaType, OkHttpClient, Request, RequestBody}
 import org.apache.commons.io.{FileUtils, IOUtils}
 import Utils._
+import org.slf4j.LoggerFactory
 
 class GitRepositoryProxyServer extends HttpServlet {
 
+  private val log = LoggerFactory.getLogger(classOf[GitRepositoryProxyServer])
   private val client = new OkHttpClient()
 
   override def doPost(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
@@ -25,8 +27,10 @@ class GitRepositoryProxyServer extends HttpServlet {
           IOUtils.copy(in, out)
         }
 
-        nodes.zipWithIndex.foreach { case (endpoint, i) =>
-          val builder = new Request.Builder().url(endpoint + path + (if(queryString == null) "" else "?" + queryString))
+        var responded = false
+
+        nodes.foreach { node =>
+          val builder = new Request.Builder().url(node + path + (if(queryString == null) "" else "?" + queryString))
 
           req.getHeaderNames.asScala.foreach { name =>
             builder.addHeader(name, req.getHeader(name))
@@ -34,23 +38,30 @@ class GitRepositoryProxyServer extends HttpServlet {
           builder.post(RequestBody.create(MediaType.parse(req.getContentType), tmpFile))
 
           val request = builder.build()
-          // TODO if request failed, remove the node and try other nodes
-          val response = client.newCall(request).execute()
 
-          if(i == 0){
-            response.headers().names().asScala.foreach { name =>
-              resp.setHeader(name, response.header(name))
+          try {
+            val response = client.newCall(request).execute()
+            if(responded == false){
+              response.headers().names().asScala.foreach { name =>
+                resp.setHeader(name, response.header(name))
+              }
+              using(response.body().byteStream(), resp.getOutputStream){ (in, out) =>
+                IOUtils.copy(in, out)
+              }
+              responded = true
             }
-            using(response.body().byteStream(), resp.getOutputStream){ (in, out) =>
-              IOUtils.copy(in, out)
-            }
+          } catch {
+            // If request failed remove the node
+            case e: Exception =>
+              log.error(s"Remove node $node by error: ${e.toString}")
+              NodeManager.removeNode(node)
           }
         }
       } finally {
         FileUtils.forceDelete(tmpFile)
       }
     } else {
-      // TODO NotFound
+      throw new RuntimeException(s"There are no available nodes for $repositoryName")
     }
   }
 
@@ -59,27 +70,34 @@ class GitRepositoryProxyServer extends HttpServlet {
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
-    NodeManager.selectNode(repositoryName).map { endpoint =>
-      val builder = new Request.Builder().url(endpoint + path + (if(queryString == null) "" else "?" + queryString))
+    NodeManager.selectNode(repositoryName).map { node =>
+      val builder = new Request.Builder().url(node + path + (if(queryString == null) "" else "?" + queryString))
 
       req.getHeaderNames.asScala.foreach { name =>
         builder.addHeader(name, req.getHeader(name))
       }
 
       val request = builder.build()
-      // TODO if request failed, remove the node and try other nodes
-      val response = client.newCall(request).execute()
 
-      response.headers().names().asScala.foreach { name =>
-        resp.setHeader(name, response.header(name))
+      try {
+        val response = client.newCall(request).execute()
+
+        response.headers().names().asScala.foreach { name =>
+          resp.setHeader(name, response.header(name))
+        }
+
+        using(response.body().byteStream(), resp.getOutputStream){ (in, out) =>
+          IOUtils.copy(in, out)
+        }
+      } catch {
+        // If request failed, remove the node and try other nodes
+        case e: Exception =>
+          log.error(s"Remove node $node by error: ${e.toString}")
+          NodeManager.removeNode(node)
+          doGet(req, resp)
       }
-
-      using(response.body().byteStream(), resp.getOutputStream){ (in, out) =>
-        IOUtils.copy(in, out)
-      }
-
     }.getOrElse {
-      // TODO NotFound
+      throw new RuntimeException(s"There are no available nodes for $repositoryName")
     }
   }
 

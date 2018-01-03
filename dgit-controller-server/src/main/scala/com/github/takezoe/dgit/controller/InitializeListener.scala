@@ -23,7 +23,7 @@ class InitializeListener extends ServletContextListener {
   }
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
-    val config = Config.load() //(2, 0.9d)
+    val config = Config.load()
 
     Resty.register(new APIController(config))
 
