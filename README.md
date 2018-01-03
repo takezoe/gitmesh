@@ -7,11 +7,11 @@ The main goal of this project is to find a reasonable way to add scalability and
 
 distributed-git-server cluster consists of following two components:
 
-- Controller server
+- [Controller server](https://github.com/takezoe/distributed-git-server/tree/master/dgit-controller-server)
 
   This is a front server of distributed-git-server cluster. It manages repository servers and proxy requests fron git clientsto appropriate repository servers. We can make redundant it by setup multiple instances with a load balancer. 
 
-- Repository server
+- [Repository server](https://github.com/takezoe/distributed-git-server/tree/master/dgit-repository-server)
 
   This is a storage server of distributed-git-server cluster. Git repositories are located on this kind of servers actually. We can add any number of repository server instances to distributed-git-server cluster.
 
