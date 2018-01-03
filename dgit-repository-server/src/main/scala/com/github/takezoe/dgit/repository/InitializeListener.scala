@@ -4,7 +4,6 @@ import java.io.File
 import javax.servlet.{ServletContextEvent, ServletContextListener}
 import javax.servlet.annotation.WebListener
 
-import com.github.takezoe.dgit.repository.models.Node
 import com.github.takezoe.resty._
 import akka.actor._
 import akka.event.Logging
@@ -55,3 +54,5 @@ class HeartBeatActor(config: Config) extends Actor with HttpClientSupport {
   }
 
 }
+
+case class Node(node: String, diskUsage: Double, repos: Seq[String])

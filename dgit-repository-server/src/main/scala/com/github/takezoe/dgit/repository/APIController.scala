@@ -5,7 +5,6 @@ import java.io.File
 import com.github.takezoe.resty._
 import org.eclipse.jgit.lib.RepositoryBuilder
 import Utils._
-import com.github.takezoe.dgit.repository.models.{CloneRequest, Result}
 import org.apache.commons.io.FileUtils
 import org.eclipse.jgit.api.Git
 import org.slf4j.LoggerFactory
@@ -15,8 +14,8 @@ class APIController(config: Config) {
   private val log = LoggerFactory.getLogger(classOf[APIController])
 
   @Action(method="GET", path = "/")
-  def status(): Result = {
-    Result("OK")
+  def status(): Status = {
+    Status("OK")
   }
 
   @Action(method="POST", path = "/api/repos/{name}")
@@ -58,3 +57,6 @@ class APIController(config: Config) {
   }
 
 }
+
+case class CloneRequest(source: String)
+case class Status(result: String)
