@@ -16,6 +16,11 @@ class APIController(config: Config) extends HttpClientSupport {
     }
   }
 
+  @Action(method = "GET", path = "/api/repos")
+  def listRepositories(): Seq[Repository] = {
+    NodeManager.allRepositories()
+  }
+
   @Action(method="POST", path = "/api/repos/{name}")
   def createRepository(name: String): Unit = {
     val nodes = NodeManager.allNodes()
