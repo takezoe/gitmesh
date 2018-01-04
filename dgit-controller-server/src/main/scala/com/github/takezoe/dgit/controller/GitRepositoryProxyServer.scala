@@ -18,50 +18,53 @@ class GitRepositoryProxyServer extends HttpServlet {
     val path = req.getRequestURI
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
-    val nodes = NodeManager.selectNodes(repositoryName)
 
-    if(nodes.nonEmpty){
-      val tmpFile = File.createTempFile("dgit", "tmpfile")
-      try {
-        using(req.getInputStream, new FileOutputStream(tmpFile)){ (in, out) =>
-          IOUtils.copy(in, out)
-        }
+    RepositoryLock.execute(repositoryName) {
+      val nodes = NodeManager.selectNodes(repositoryName)
 
-        var responded = false
-
-        nodes.foreach { node =>
-          val builder = new Request.Builder().url(node + path + (if(queryString == null) "" else "?" + queryString))
-
-          req.getHeaderNames.asScala.foreach { name =>
-            builder.addHeader(name, req.getHeader(name))
+      if (nodes.nonEmpty) {
+        val tmpFile = File.createTempFile("dgit", "tmpfile")
+        try {
+          using(req.getInputStream, new FileOutputStream(tmpFile)) { (in, out) =>
+            IOUtils.copy(in, out)
           }
-          builder.post(RequestBody.create(MediaType.parse(req.getContentType), tmpFile))
 
-          val request = builder.build()
+          var responded = false
 
-          try {
-            val response = client.newCall(request).execute()
-            if(responded == false){
-              response.headers().names().asScala.foreach { name =>
-                resp.setHeader(name, response.header(name))
-              }
-              using(response.body().byteStream(), resp.getOutputStream){ (in, out) =>
-                IOUtils.copy(in, out)
-              }
-              responded = true
+          nodes.foreach { node =>
+            val builder = new Request.Builder().url(node + path + (if (queryString == null) "" else "?" + queryString))
+
+            req.getHeaderNames.asScala.foreach { name =>
+              builder.addHeader(name, req.getHeader(name))
             }
-          } catch {
-            // If request failed remove the node
-            case e: Exception =>
-              log.error(s"Remove node $node by error: ${e.toString}")
-              NodeManager.removeNode(node)
+            builder.post(RequestBody.create(MediaType.parse(req.getContentType), tmpFile))
+
+            val request = builder.build()
+
+            try {
+              val response = client.newCall(request).execute()
+              if (responded == false) {
+                response.headers().names().asScala.foreach { name =>
+                  resp.setHeader(name, response.header(name))
+                }
+                using(response.body().byteStream(), resp.getOutputStream) { (in, out) =>
+                  IOUtils.copy(in, out)
+                }
+                responded = true
+              }
+            } catch {
+              // If request failed remove the node
+              case e: Exception =>
+                log.error(s"Remove node $node by error: ${e.toString}")
+                NodeManager.removeNode(node)
+            }
           }
+        } finally {
+          FileUtils.forceDelete(tmpFile)
         }
-      } finally {
-        FileUtils.forceDelete(tmpFile)
+      } else {
+        throw new RuntimeException(s"There are no available nodes for $repositoryName")
       }
-    } else {
-      throw new RuntimeException(s"There are no available nodes for $repositoryName")
     }
   }
 

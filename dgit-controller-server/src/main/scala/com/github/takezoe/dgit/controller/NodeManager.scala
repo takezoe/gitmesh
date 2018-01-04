@@ -13,7 +13,7 @@ object RepositoryLock {
 
   private val locks = new ConcurrentHashMap[String, Unit]()
 
-  def execute[T](repositoryName: String, action: => T): T = {
+  def execute[T](repositoryName: String)(action: => T): T = {
     var result: T = null.asInstanceOf[T]
     locks.computeIfAbsent(repositoryName, _ => {
       result = action

@@ -42,6 +42,7 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
     case _ => {
       // Check died nodes
       val timeout = System.currentTimeMillis() - (5 * 60 * 1000)
+
       NodeManager.allNodes().foreach { case (node, status) =>
         if(status.timestamp < timeout){
           log.warning(s"$node is retired.")
@@ -49,33 +50,30 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
         }
       }
 
-      // Add replica in parallel
-      val futures = NodeManager.allRepositories()
+      // Add replica if it's needed
+      NodeManager.allRepositories()
         .filter { repository => repository.nodes.size < config.replica }
-        .flatMap { repository =>
-          (1 to config.replica - repository.nodes.size).flatMap { _ =>
-            NodeManager.selectAvailableNode().map { replicaNode =>
-              httpPutJsonAsync(
-                s"$replicaNode/api/repos/${repository.name}",
-                CloneRequest(s"${repository.primaryNode}/git/${repository.name}.git")
-              ).map { result =>
-                // Update node status
-                NodeManager.allNodes()
-                  .find { case (node, _) => node == replicaNode }
-                  .foreach { case (node, status) =>
-                    NodeManager.updateNodeStatus(node, status.diskUsage, status.repos :+ repository.name)
-                  }
-                result
+        .foreach { repository =>
+          val lackOfReplicas = config.replica - repository.nodes.size
+          if(lackOfReplicas > 0){
+            RepositoryLock.execute(repository.name){
+              (1 to config.replica - repository.nodes.size).flatMap { _ =>
+                NodeManager.selectAvailableNode().map { replicaNode =>
+                  httpPutJson(
+                    s"$replicaNode/api/repos/${repository.name}",
+                    CloneRequest(s"${repository.primaryNode}/git/${repository.name}.git")
+                  )
+                  // Update node status
+                  NodeManager.allNodes()
+                    .find { case (node, _) => node == replicaNode }
+                    .foreach { case (node, status) =>
+                      NodeManager.updateNodeStatus(node, status.diskUsage, status.repos :+ repository.name)
+                    }
+                }
               }
             }
           }
         }
-
-      val f = Future.sequence(futures)
-
-      // TODO Error handling
-      val results = Await.result(f, 10.minutes)
-      log.debug(s"Results of creating replicas: $results")
     }
   }
 }
