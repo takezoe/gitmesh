@@ -13,6 +13,7 @@ class GitRepositoryServlet extends GitServlet {
     val dataNodeConfig = Config.load()
 
     val root: File = new File(dataNodeConfig.directory)
+
     setRepositoryResolver(new FileResolver2[HttpServletRequest](root, true))
 
     super.init(config)

@@ -70,11 +70,17 @@ class APIController(config: Config) {
     }
 
     // Clone from the source repository
-    Git.cloneRepository().setBare(true)
+    using(Git.cloneRepository().setBare(true)
       .setURI(request.source)
       .setDirectory(repositoryDir)
       .setCloneAllBranches(true)
-      .call()
+      .call()){ git =>
+      using(git.getRepository){ repository =>
+        val config = repository.getConfig
+        config.setBoolean("http", null, "receivepack", true)
+        config.save
+      }
+    }
   }
 
 }

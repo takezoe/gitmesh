@@ -44,6 +44,7 @@ class GitRepositoryProxyServer extends HttpServlet {
             try {
               val response = client.newCall(request).execute()
               if (responded == false) {
+                resp.setStatus(response.code())
                 response.headers().names().asScala.foreach { name =>
                   resp.setHeader(name, response.header(name))
                 }
@@ -88,6 +89,7 @@ class GitRepositoryProxyServer extends HttpServlet {
       try {
         val response = client.newCall(request).execute()
 
+        resp.setStatus(response.code())
         response.headers().names().asScala.foreach { name =>
           resp.setHeader(name, response.header(name))
         }
