@@ -59,7 +59,10 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
             RepositoryLock.execute(repository.name){
               (1 to config.replica - repository.nodes.size).flatMap { _ =>
                 NodeManager.selectAvailableNode(repository.name).map { replicaNode =>
-                  httpPut(s"$replicaNode/api/repos/${repository.name}", Map.empty)
+                  httpPutJson(
+                    s"$replicaNode/api/repos/${repository.name}",
+                    CloneRequest(s"${repository.primaryNode}/git/${repository.name}.git")
+                  )
                   // Update node status
                   NodeManager.allNodes()
                     .find { case (node, _) => node == replicaNode }
@@ -74,3 +77,5 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
     }
   }
 }
+
+case class CloneRequest(source: String)

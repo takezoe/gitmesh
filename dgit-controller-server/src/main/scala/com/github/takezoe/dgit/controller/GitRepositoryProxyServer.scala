@@ -49,10 +49,11 @@ class GitRepositoryProxyServer extends HttpServlet {
                 }
                 using(response.body().byteStream(), resp.getOutputStream) { (in, out) =>
                   IOUtils.copy(in, out)
+                  out.flush()
                 }
                 responded = true
               }
-              response.close()
+              //response.close()
             } catch {
               // If request failed remove the node
               case e: Exception =>
@@ -93,6 +94,7 @@ class GitRepositoryProxyServer extends HttpServlet {
 
         using(response.body().byteStream(), resp.getOutputStream){ (in, out) =>
           IOUtils.copy(in, out)
+          out.flush()
         }
       } catch {
         // If request failed, remove the node and try other nodes
