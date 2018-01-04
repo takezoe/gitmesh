@@ -52,6 +52,7 @@ class GitRepositoryProxyServer extends HttpServlet {
                 }
                 responded = true
               }
+              response.close()
             } catch {
               // If request failed remove the node
               case e: Exception =>
@@ -78,6 +79,7 @@ class GitRepositoryProxyServer extends HttpServlet {
 
       req.getHeaderNames.asScala.foreach { name =>
         builder.addHeader(name, req.getHeader(name))
+        println(name + ": " + req.getHeader(name))
       }
 
       val request = builder.build()

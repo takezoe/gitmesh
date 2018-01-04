@@ -53,5 +53,4 @@ class APIController(config: Config) extends HttpClientSupport {
 
 }
 
-case class CloneRequest(source: String)
 case class Node(node: String, diskUsage: Double, repos: Seq[String])

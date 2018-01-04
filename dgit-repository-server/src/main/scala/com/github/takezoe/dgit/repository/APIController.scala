@@ -57,8 +57,8 @@ class APIController(config: Config) {
   }
 
   @Action(method = "PUT", path = "/api/repos/{name}")
-  def cloneRepository(name: String, request: CloneRequest): Unit = {
-    log.info(s"Synchronize repository: $name with ${request.source}")
+  def cloneRepository(name: String): Unit = {
+    log.info(s"Synchronize repository: $name")
 
     val rootDir = new File(config.directory)
     val repositoryDir = new File(rootDir, name)
@@ -70,7 +70,7 @@ class APIController(config: Config) {
 
     // Clone from the source repository
     Git.cloneRepository().setBare(true)
-      .setURI(request.source)
+      .setURI(s"${config.controllerUrl}/git/$name.git")
       .setDirectory(repositoryDir)
       .setCloneAllBranches(true)
       .call()
@@ -78,5 +78,4 @@ class APIController(config: Config) {
 
 }
 
-case class CloneRequest(source: String)
 case class Status(endpoint: String, diskUsage: Double, repos: Seq[String])
