@@ -41,7 +41,7 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
   override def receive = {
     case _ => {
       // Check died nodes
-      val timeout = System.currentTimeMillis() - (5 * 60 * 1000)
+      val timeout = System.currentTimeMillis() - (30 * 1000)
 
       NodeManager.allNodes().foreach { case (node, status) =>
         if(status.timestamp < timeout){
@@ -58,7 +58,7 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
           if(lackOfReplicas > 0){
             RepositoryLock.execute(repository.name){
               (1 to config.replica - repository.nodes.size).flatMap { _ =>
-                NodeManager.selectAvailableNode().map { replicaNode =>
+                NodeManager.selectAvailableNode(repository.name).map { replicaNode =>
                   httpPutJson(
                     s"$replicaNode/api/repos/${repository.name}",
                     CloneRequest(s"${repository.primaryNode}/git/${repository.name}.git")

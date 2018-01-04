@@ -71,7 +71,9 @@ object NodeManager extends HttpClientSupport {
     nodes.asScala.collect { case (node, status) if status.repos.contains(repository) => node }.toSeq
   }
 
-  def selectAvailableNode(): Option[String] = ???
+  def selectAvailableNode(repository: String): Option[String] = {
+    nodes.asScala.collectFirst { case (node, status) if !status.repos.contains(repository) => node }
+  }
 
   def allRepositories(): Seq[Repository] = {
     nodes.asScala.toSeq

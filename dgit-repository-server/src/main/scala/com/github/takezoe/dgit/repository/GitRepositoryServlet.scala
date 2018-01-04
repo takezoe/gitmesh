@@ -19,7 +19,7 @@ class GitRepositoryServlet extends GitServlet {
   }
 
   override def service(req: HttpServletRequest, res: HttpServletResponse): Unit = {
-    println(req.getRequestURI)
+    println(req.getMethod + " " + req.getRequestURI + (if(req.getQueryString == null) "" else "?" + req.getQueryString))
     super.service(req, res)
   }
 

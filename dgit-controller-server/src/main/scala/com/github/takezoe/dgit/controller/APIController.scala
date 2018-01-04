@@ -21,6 +21,19 @@ class APIController(config: Config) extends HttpClientSupport {
     NodeManager.allRepositories()
   }
 
+  @Action(method="DELETE", path = "/api/repos/{name}")
+  def deleteRepository(name: String): Unit = {
+    NodeManager.selectNodes(name).foreach { deleteNode =>
+      httpDelete[String](s"$deleteNode/api/repos/$name")
+
+      NodeManager.allNodes()
+        .find { case (node, _) => node == deleteNode }
+        .foreach { case (node, status) =>
+          NodeManager.updateNodeStatus(node, status.diskUsage, status.repos.filterNot(_ == name))
+        }
+    }
+  }
+
   @Action(method="POST", path = "/api/repos/{name}")
   def createRepository(name: String): Unit = {
     val nodes = NodeManager.allNodes()

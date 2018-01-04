@@ -39,6 +39,11 @@ class HeartBeatActor(config: Config) extends Actor with HttpClientSupport {
   override def receive: Receive = {
     case _ => {
       val rootDir = new File(config.directory)
+
+      if(!rootDir.exists){
+        rootDir.mkdirs()
+      }
+
       val diskUsage = rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble
       val repos = rootDir.listFiles(_.isDirectory).toSeq.map(_.getName)
 
