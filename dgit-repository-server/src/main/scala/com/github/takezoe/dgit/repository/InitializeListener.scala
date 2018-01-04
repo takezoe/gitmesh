@@ -44,7 +44,7 @@ class HeartBeatActor(config: Config) extends Actor with HttpClientSupport {
         rootDir.mkdirs()
       }
 
-      val diskUsage = rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble
+      val diskUsage = 1.0d - (rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble)
       val repos = rootDir.listFiles(_.isDirectory).toSeq.map(_.getName)
 
       httpPostJson[String](
