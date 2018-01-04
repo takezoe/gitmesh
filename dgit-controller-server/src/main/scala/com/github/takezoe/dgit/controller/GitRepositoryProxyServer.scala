@@ -54,7 +54,6 @@ class GitRepositoryProxyServer extends HttpServlet {
                 }
                 responded = true
               }
-              //response.close()
             } catch {
               // If request failed remove the node
               case e: Exception =>
