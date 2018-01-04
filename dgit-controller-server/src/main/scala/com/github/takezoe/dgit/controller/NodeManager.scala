@@ -7,6 +7,23 @@ import com.github.takezoe.resty.HttpClientSupport
 import scala.collection.JavaConverters._
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable.ListBuffer
+
+object RepositoryLock {
+
+  private val locks = new ConcurrentHashMap[String, Unit]()
+
+  def execute[T](repositoryName: String, action: => T): T = {
+    var result: T = null.asInstanceOf[T]
+    locks.computeIfAbsent(repositoryName, _ => {
+      result = action
+      ()
+    })
+    locks.remove(repositoryName)
+    result
+  }
+}
+
 // TODO Should be a class?
 object NodeManager extends HttpClientSupport {
 
@@ -15,29 +32,26 @@ object NodeManager extends HttpClientSupport {
   private val primaryNodeOfRepository = new ConcurrentHashMap[String, String]()
 
   def updateNodeStatus(node: String, diskUsage: Double, repos: Seq[String]): Unit = {
-    if(!nodes.containsKey(node)){
+    val isNew = !nodes.containsKey(node)
+    if(isNew){
       log.info(s"Added a repository node: $node")
     }
-    nodes.put(node, NodeStatus(System.currentTimeMillis(), diskUsage, repos))
 
+    val primaryRepositories = new ListBuffer[String]
     repos.foreach { repository =>
-      Option(primaryNodeOfRepository.get(repository)) match {
-        // Set the primary node of repositories if it doesn't exist
-        case None =>
-          primaryNodeOfRepository.put(repository, node)
+      primaryNodeOfRepository.computeIfAbsent(repository, _ => {
+        primaryRepositories += repository
+        node
+      })
+    }
 
-        // Synchronize with the primary repository if it exists
-        // TODO If added repository is latest, no need to synchronize.
-        // TODO It should be added any stuff to judge it to reduce waste of time to synchronization.
-        case Some(primaryEndpoint) =>
-          httpPutJson[String](
-            s"$node/api/repos/$repository",
-            CloneRequest(s"$primaryEndpoint/git/$repository.git")
-          ) match {
-            case Right(_) =>
-            case Left(e) => log.error(e.errors.mkString("\n")) // TODO What to do in this case?
-          }
+    if(isNew){
+      repos.filterNot(primaryRepositories.contains).foreach { repository =>
+        httpDelete[String](s"$node/api/repos/$repository")
       }
+      nodes.put(node, NodeStatus(System.currentTimeMillis(), diskUsage, primaryRepositories))
+    } else {
+      nodes.put(node, NodeStatus(System.currentTimeMillis(), diskUsage, repos))
     }
   }
 

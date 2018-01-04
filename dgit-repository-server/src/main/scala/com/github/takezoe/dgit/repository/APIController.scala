@@ -36,6 +36,18 @@ class APIController(config: Config) {
     rootDir.listFiles(_.isDirectory).toSeq.map(_.getName)
   }
 
+  @Action(method="DELETE", path = "/api/repos/{name}")
+  def deleteRepository(name: String): Unit = {
+    log.info(s"Delete repository: $name")
+
+    val rootDir = new File(config.directory)
+    val repositoryDir = new File(rootDir, name)
+
+    if(repositoryDir.exists){
+      FileUtils.forceDelete(repositoryDir)
+    }
+  }
+
   @Action(method = "PUT", path = "/api/repos/{name}")
   def cloneRepository(name: String, request: CloneRequest): Unit = {
     log.info(s"Synchronize repository: $name with ${request.source}")
