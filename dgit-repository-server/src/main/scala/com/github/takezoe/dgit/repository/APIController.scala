@@ -15,7 +15,15 @@ class APIController(config: Config) {
 
   @Action(method="GET", path = "/")
   def status(): Status = {
-    Status("OK")
+    val rootDir = new File(config.directory)
+    val diskUsage = rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble
+    val repos = rootDir.listFiles(_.isDirectory).toSeq.map(_.getName)
+
+    Status(
+      endpoint = config.endpoint,
+      diskUsage = diskUsage,
+      repos = repos
+    )
   }
 
   @Action(method="POST", path = "/api/repos/{name}")
@@ -71,4 +79,4 @@ class APIController(config: Config) {
 }
 
 case class CloneRequest(source: String)
-case class Status(result: String)
+case class Status(endpoint: String, diskUsage: Double, repos: Seq[String])

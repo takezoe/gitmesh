@@ -38,13 +38,13 @@ class HeartBeatActor(config: Config) extends Actor with HttpClientSupport {
 
   override def receive: Receive = {
     case _ => {
-      val roorDir = new File(config.directory)
-      val diskUsage = roorDir.getFreeSpace.toDouble / roorDir.getTotalSpace.toDouble
-      val repos = roorDir.listFiles(_.isDirectory).toSeq.map(_.getName)
+      val rootDir = new File(config.directory)
+      val diskUsage = rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble
+      val repos = rootDir.listFiles(_.isDirectory).toSeq.map(_.getName)
 
       httpPostJson[String](
         s"${config.controllerUrl}/api/nodes/join",
-        Node("http://localhost:8081", diskUsage, repos)
+        Node(config.endpoint, diskUsage, repos)
       ) match {
         case Right(_) => // success
         case Left(e) => log.error(e.errors.mkString("\n"))
