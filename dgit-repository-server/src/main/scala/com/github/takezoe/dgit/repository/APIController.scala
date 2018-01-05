@@ -63,7 +63,7 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
     val cloneUrl = s"${config.endpoint}/git/$name.git"
     log.info(s"Synchronize repository: $name with ${cloneUrl}")
 
-    val dir = new File(config.directory, name).unsafeTap { dir =>
+    defining(new File(config.directory, name)){ dir =>
       // Delete the repository directory if it exists
       if(dir.exists){
         FileUtils.forceDelete(dir)
