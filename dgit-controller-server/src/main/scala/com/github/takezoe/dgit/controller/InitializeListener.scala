@@ -58,11 +58,11 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
           if(lackOfReplicas > 0){
             RepositoryLock.execute(repository.name){
               (1 to config.replica - repository.nodes.size).flatMap { _ =>
-                NodeManager.selectAvailableNode(repository.name).map { nodeUrl =>
+                NodeManager.getUrlOfAvailableNode(repository.name).map { nodeUrl =>
                   // Create replica
-                  httpPutJson(s"$nodeUrl/api/repos/${repository.name}", CloneRequest(repository.primaryNodeUrl))
+                  httpPutJson(s"$nodeUrl/api/repos/${repository.name}", CloneRequest(repository.primaryNode))
                   // Update node status
-                  NodeManager.findNode(nodeUrl).foreach { case (_, status) =>
+                  NodeManager.getNodeStatus(nodeUrl).foreach { status =>
                     NodeManager.updateNodeStatus(nodeUrl, status.diskUsage, status.repos :+ repository.name)
                   }
                 }

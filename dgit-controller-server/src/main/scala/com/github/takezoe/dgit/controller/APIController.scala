@@ -23,10 +23,10 @@ class APIController(config: Config) extends HttpClientSupport {
 
   @Action(method = "DELETE", path = "/api/repos/{repositoryName}")
   def deleteRepository(repositoryName: String): Unit = {
-    NodeManager.selectNodes(repositoryName).foreach { nodeUrl =>
+    NodeManager.getNodeUrlsOfRepository(repositoryName).foreach { nodeUrl =>
       httpDelete[String](s"$nodeUrl/api/repos/$repositoryName")
 
-      NodeManager.findNode(nodeUrl).foreach { case (_, status) =>
+      NodeManager.getNodeStatus(nodeUrl).foreach { status =>
         NodeManager.updateNodeStatus(nodeUrl, status.diskUsage, status.repos.filterNot(_ == repositoryName))
       }
     }

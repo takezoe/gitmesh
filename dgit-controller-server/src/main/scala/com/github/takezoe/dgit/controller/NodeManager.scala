@@ -46,9 +46,9 @@ object NodeManager extends HttpClientSupport {
     primaryNodeOfRepository.forEach { case (repositoryName, primaryNodeUrl) =>
       if(nodeUrl == primaryNodeUrl){
         nodes.asScala.find { case (_, status) => status.repos.contains(repositoryName) } match {
-          case Some((newNode, _)) => {
+          case Some((nodeUrl, _)) => {
             // Update the primary node
-            primaryNodeOfRepository.put(repositoryName, newNode)
+            primaryNodeOfRepository.put(repositoryName, nodeUrl)
           }
           case None => {
             log.error(s"All nodes for $repositoryName has been retired.")
@@ -63,20 +63,20 @@ object NodeManager extends HttpClientSupport {
     nodes.asScala.toSeq
   }
 
-  def findNode(url: String): Option[(String, NodeStatus)] = {
-    nodes.asScala.find { case (nodeUrl, _) => nodeUrl == url }
+  def getNodeStatus(url: String): Option[NodeStatus] = {
+    nodes.asScala.collectFirst { case (nodeUrl, status) if nodeUrl == url => status }
   }
 
-  def selectNode(repositoryName: String): Option[String] = {
+  def getUrlOfPrimaryNode(repositoryName: String): Option[String] = {
     Option(primaryNodeOfRepository.get(repositoryName))
   }
 
-  def selectNodes(repositoryName: String): Seq[String] = {
+  def getNodeUrlsOfRepository(repositoryName: String): Seq[String] = {
     nodes.asScala.collect { case (nodeUrl, status) if status.repos.contains(repositoryName) => nodeUrl }.toSeq
   }
 
-  def selectAvailableNode(repositoryName: String): Option[String] = {
-    nodes.asScala.collectFirst { case (node, status) if !status.repos.contains(repositoryName) => node }
+  def getUrlOfAvailableNode(repositoryName: String): Option[String] = {
+    nodes.asScala.collectFirst { case (nodeUrl, status) if !status.repos.contains(repositoryName) => nodeUrl }
   }
 
   def allRepositories(): Seq[Repository] = {
@@ -86,7 +86,7 @@ object NodeManager extends HttpClientSupport {
       .map { case (repositoryName, group) =>
         Repository(
           repositoryName,
-          selectNode(repositoryName).get, // TODO Don't use Option.get!
+          getUrlOfPrimaryNode(repositoryName).get, // TODO Don't use Option.get!
           group.map { case (_, nodeUrl) => nodeUrl }
         )
       }
@@ -95,5 +95,5 @@ object NodeManager extends HttpClientSupport {
 
 }
 
-case class Repository(name: String, primaryNodeUrl: String, nodes: Seq[String])
+case class Repository(name: String, primaryNode: String, nodes: Seq[String])
 case class NodeStatus(timestamp: Long, diskUsage: Double, repos: Seq[String])

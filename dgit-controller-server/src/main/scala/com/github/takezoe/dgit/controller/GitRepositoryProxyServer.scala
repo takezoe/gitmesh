@@ -21,7 +21,7 @@ class GitRepositoryProxyServer extends HttpServlet {
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
     RepositoryLock.execute(repositoryName) {
-      val nodes = NodeManager.selectNodes(repositoryName)
+      val nodes = NodeManager.getNodeUrlsOfRepository(repositoryName)
 
       if (nodes.nonEmpty) {
         val tmpFile = File.createTempFile("dgit", "tmpfile")
@@ -76,7 +76,7 @@ class GitRepositoryProxyServer extends HttpServlet {
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
-    NodeManager.selectNode(repositoryName).map { node =>
+    NodeManager.getUrlOfPrimaryNode(repositoryName).map { node =>
       val builder = new Request.Builder().url(node + path + (if(queryString == null) "" else "?" + queryString))
 
       req.getHeaderNames.asScala.foreach { name =>
