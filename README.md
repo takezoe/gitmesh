@@ -9,7 +9,7 @@ distributed-git-server cluster consists of following two components:
 
 - [Controller server](https://github.com/takezoe/distributed-git-server/tree/master/dgit-controller-server)
 
-  This is a front server of distributed-git-server cluster. It manages repository servers and proxy requests fron git clientsto appropriate repository servers. We can make redundant it by setup multiple instances with a load balancer. 
+  This is a front server of distributed-git-server cluster. It manages repository servers and proxy requests fron git clients to appropriate repository servers. We can make redundant it by setup multiple instances with a load balancer. 
 
 - [Repository server](https://github.com/takezoe/distributed-git-server/tree/master/dgit-repository-server)
 
@@ -17,4 +17,4 @@ distributed-git-server cluster consists of following two components:
 
 ![Architecture](architecture.png)
 
-distributed-git-server is still under development. I will add more detailed architecture documentation, and instruction how to setup.
+distributed-git-server is still under development. I will add a more detailed architecture documentation and an instruction which shows how to setup.

@@ -7,6 +7,22 @@ Git repositories are available at `/git/REPOSITORY_NAME.git`
 
 ## API endpoints
 
+### Status
+
+- Endpoint: `GET /`
+- Request: None
+- Response:
+  ```javascript
+  {
+    "endpoint": "http://localhost:8081",
+    "diskUsage": 0.5,
+    "repos": [
+      "repo1",
+      "repo2"
+    ]
+  }
+  ```
+
 ### List repositories
 
 - Endpoint: `GET /api/repos`
@@ -14,10 +30,27 @@ Git repositories are available at `/git/REPOSITORY_NAME.git`
 - Response:
   ```javascript
   [
-    "repo1",
-    "repo2",
-    ...
+    {
+      "name": "repo1",
+      "empty": false
+    },
+    {
+      "name": "repo2",
+      "empty": true
+    }
   ]
+  ```
+
+### Show repository status
+
+- Endpoint: `GET /api/repos/REPOSITORY_NAME`
+- Request: None
+- Response:
+  ```javascript
+  {
+    "name": "repo1",
+    "empty": false
+  }
   ```
 
 ### Create a repository
@@ -38,7 +71,7 @@ Git repositories are available at `/git/REPOSITORY_NAME.git`
 - Request:
   ```javascript
   {
-    "source": "http://host:port/git/repository.git"
+    "endpoint": "http://localhost:8081"
   }
   ```
 - Response: None
