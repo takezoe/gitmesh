@@ -50,11 +50,9 @@ class APIController(config: Config) {
   def deleteRepository(name: String): Unit = {
     log.info(s"Delete repository: $name")
 
-    val rootDir = new File(config.directory)
-    val repositoryDir = new File(rootDir, name)
-
-    if(repositoryDir.exists){
-      FileUtils.forceDelete(repositoryDir)
+    val dir = new File(config.directory, name)
+    if(dir.exists){
+      FileUtils.forceDelete(dir)
     }
   }
 
@@ -63,18 +61,17 @@ class APIController(config: Config) {
     //val cloneUrl = s"${config.controllerUrl}/git/$name.git"
     log.info(s"Synchronize repository: $name with ${request.source}")
 
-    val rootDir = new File(config.directory)
-    val repositoryDir = new File(rootDir, name)
-
-    // Delete the repository directory if it exists
-    if(repositoryDir.exists){
-      FileUtils.forceDelete(repositoryDir)
+    val dir = new File(config.directory, name).unsafeTap { dir =>
+      // Delete the repository directory if it exists
+      if(dir.exists){
+        FileUtils.forceDelete(dir)
+      }
     }
 
     // Clone from the source repository
     using(Git.cloneRepository().setBare(true)
       .setURI(request.source)
-      .setDirectory(repositoryDir)
+      .setDirectory(dir)
       .setCloneAllBranches(true)
       .call()){ git =>
       using(git.getRepository){ repository =>

@@ -12,6 +12,8 @@ import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
+import syntax._
+
 @WebListener
 class InitializeListener extends ServletContextListener {
 
@@ -38,10 +40,10 @@ class HeartBeatActor(config: Config) extends Actor with HttpClientSupport {
 
   override def receive: Receive = {
     case _ => {
-      val rootDir = new File(config.directory)
-
-      if(!rootDir.exists){
-        rootDir.mkdirs()
+      val rootDir = new File(config.directory).unsafeTap { dir =>
+        if(!dir.exists){
+          dir.mkdirs()
+        }
       }
 
       val diskUsage = 1.0d - (rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble)
