@@ -26,7 +26,7 @@ class InitializeListener extends ServletContextListener {
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
     val config = Config.load()
-    Resty.register(new APIController(config))
+    Resty.register(new APIController()(config))
 
     val scheduler = QuartzSchedulerExtension(system)
     scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[HeartBeatActor], config)), "tick")

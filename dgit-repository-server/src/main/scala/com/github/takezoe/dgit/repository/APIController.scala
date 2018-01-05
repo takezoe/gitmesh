@@ -5,12 +5,10 @@ import java.io.File
 import syntax._
 
 import com.github.takezoe.resty._
-import org.eclipse.jgit.lib.RepositoryBuilder
 import org.apache.commons.io.FileUtils
-import org.eclipse.jgit.api.Git
 import org.slf4j.LoggerFactory
 
-class APIController(config: Config) extends HttpClientSupport {
+class APIController(implicit val config: Config) extends HttpClientSupport with GitOperations {
 
   private val log = LoggerFactory.getLogger(classOf[APIController])
 
@@ -30,14 +28,7 @@ class APIController(config: Config) extends HttpClientSupport {
   @Action(method = "POST", path = "/api/repos/{name}")
   def createRepository(name: String): Unit = {
     log.info(s"Create repository: $name")
-
-    using(new RepositoryBuilder().setGitDir(new File(config.directory, name)).setBare.build){ repository =>
-      repository.create(true)
-      defining(repository.getConfig){ config =>
-        config.setBoolean("http", null, "receivepack", true)
-        config.save
-      }
-    }
+    createRepository(name)
   }
 
   @Action(method = "GET", path = "/api/repos")
@@ -69,29 +60,11 @@ class APIController(config: Config) extends HttpClientSupport {
     }
 
     httpGet[Repository](s"${request.endpoint}/api/repos/$name") match {
-      case Left(e) =>
-        throw new RuntimeException(e.errors.mkString("\n"))
-
-      case Right(x) if x.empty =>
-        // Source is an empty repository
-        using(new RepositoryBuilder().setGitDir(new File(config.directory, name)).setBare.build){ repository =>
-          repository.create(true)
-          defining(repository.getConfig){ config =>
-            config.setBoolean("http", null, "receivepack", true)
-            config.save
-          }
-        }
-
-      case _ =>
-        // Clone from the source repository
-        using(Git.cloneRepository().setBare(true).setURI(cloneUrl).setDirectory(dir).setCloneAllBranches(true).call()){ git =>
-          using(git.getRepository){ repository =>
-            defining(repository.getConfig){ config =>
-              config.setBoolean("http", null, "receivepack", true)
-              config.save
-            }
-          }
-        }
+      case Left(e) => throw new RuntimeException(e.errors.mkString("\n"))
+      // Source is an empty repository
+      case Right(x) if x.empty => createRepository(name)
+      // Clone from the source repository
+      case _ => cloneRepository(name, cloneUrl)
     }
   }
 
