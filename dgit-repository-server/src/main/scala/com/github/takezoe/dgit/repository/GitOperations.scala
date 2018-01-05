@@ -4,9 +4,15 @@ import java.io.File
 
 import org.eclipse.jgit.api.Git
 import syntax._
-import org.eclipse.jgit.lib.RepositoryBuilder
+import org.eclipse.jgit.lib.{Constants, RepositoryBuilder}
 
 trait GitOperations {
+
+  def gitCheckEmpty(name: String)(implicit config: Config): Boolean = {
+    using(Git.open(new File(config.directory, name))){ git =>
+      git.getRepository.resolve(Constants.HEAD) == null
+    }
+  }
 
   def gitInit(name: String)(implicit config: Config): Unit = {
     using(new RepositoryBuilder().setGitDir(new File(config.directory, name)).setBare.build){ repository =>
