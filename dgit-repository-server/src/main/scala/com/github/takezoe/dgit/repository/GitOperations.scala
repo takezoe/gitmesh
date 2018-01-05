@@ -8,7 +8,7 @@ import org.eclipse.jgit.lib.RepositoryBuilder
 
 trait GitOperations {
 
-  def createRepository(name: String)(implicit config: Config): Unit = {
+  def gitInit(name: String)(implicit config: Config): Unit = {
     using(new RepositoryBuilder().setGitDir(new File(config.directory, name)).setBare.build){ repository =>
       repository.create(true)
       defining(repository.getConfig){ config =>
@@ -18,9 +18,9 @@ trait GitOperations {
     }
   }
 
-  def cloneRepository(name: String, sourceUrl: String)(implicit config: Config): Unit = {
+  def gitClone(name: String, sourceUrl: String)(implicit config: Config): Unit = {
     using(Git.cloneRepository().setBare(true).setURI(sourceUrl)
-             .setDirectory(new File(config.directory, name)).setCloneAllBranches(true).call()){ git =>
+      .setDirectory(new File(config.directory, name)).setCloneAllBranches(true).call()){ git =>
       using(git.getRepository){ repository =>
         defining(repository.getConfig){ config =>
           config.setBoolean("http", null, "receivepack", true)

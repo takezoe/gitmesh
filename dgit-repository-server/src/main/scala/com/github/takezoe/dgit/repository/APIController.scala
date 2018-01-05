@@ -28,7 +28,7 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   @Action(method = "POST", path = "/api/repos/{name}")
   def createRepository(name: String): Unit = {
     log.info(s"Create repository: $name")
-    createRepository(name)
+    gitInit(name)
   }
 
   @Action(method = "GET", path = "/api/repos")
@@ -62,9 +62,9 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
     httpGet[Repository](s"${request.endpoint}/api/repos/$name") match {
       case Left(e) => throw new RuntimeException(e.errors.mkString("\n"))
       // Source is an empty repository
-      case Right(x) if x.empty => createRepository(name)
+      case Right(x) if x.empty => gitInit(name)
       // Clone from the source repository
-      case _ => cloneRepository(name, cloneUrl)
+      case _ => gitClone(name, cloneUrl)
     }
   }
 
