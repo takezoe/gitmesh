@@ -19,20 +19,21 @@ object NodeManager extends HttpClientSupport {
   def updateNodeStatus(node: String, diskUsage: Double, repos: Seq[String]): Unit = {
     val isNew = !nodes.containsKey(node)
 
-    if(isNew){
-      log.info(s"Added a repository node: $node")
-      val primaryRepositories = new ListBuffer[String]
-      repos.foreach { repository =>
-        primaryNodeOfRepository.computeIfAbsent(repository, _ => {
-          primaryRepositories += repository
-          node
-        })
-      }
+    val primaryRepositoryNames = new ListBuffer[String]
+    repos.foreach { repositoryName =>
+      primaryNodeOfRepository.computeIfAbsent(repositoryName, _ => {
+        log.info(s"Set $node as the primary node for $repositoryName")
+        primaryRepositoryNames += repositoryName
+        node
+      })
+    }
 
-      repos.filterNot(primaryRepositories.contains).foreach { repository =>
-        httpDelete[String](s"$node/api/repos/$repository")
+    if(isNew){
+      repos.filterNot(primaryRepositoryNames.contains).foreach { repositoryName =>
+        httpDelete[String](s"$node/api/repos/$repositoryName")
       }
-      nodes.put(node, NodeStatus(System.currentTimeMillis(), diskUsage, primaryRepositories))
+      nodes.put(node, NodeStatus(System.currentTimeMillis(), diskUsage, primaryRepositoryNames))
+      log.info(s"Added a repository node: $node")
 
     } else {
       nodes.put(node, NodeStatus(System.currentTimeMillis(), diskUsage, repos))
