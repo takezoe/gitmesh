@@ -6,7 +6,7 @@ class APIController(config: Config) extends HttpClientSupport {
 
   @Action(method = "POST", path = "/api/nodes/join")
   def joinRepositoryNode(node: Node): Unit = {
-    NodeManager.updateNodeStatus(node.node, node.diskUsage, node.repos)
+    NodeManager.updateNodeStatus(node.url, node.diskUsage, node.repos)
   }
 
   @Action(method = "GET", path = "/api/nodes")
@@ -21,30 +21,28 @@ class APIController(config: Config) extends HttpClientSupport {
     NodeManager.allRepositories()
   }
 
-  @Action(method = "DELETE", path = "/api/repos/{name}")
-  def deleteRepository(name: String): Unit = {
-    NodeManager.selectNodes(name).foreach { deleteNode =>
-      httpDelete[String](s"$deleteNode/api/repos/$name")
+  @Action(method = "DELETE", path = "/api/repos/{repositoryName}")
+  def deleteRepository(repositoryName: String): Unit = {
+    NodeManager.selectNodes(repositoryName).foreach { nodeUrl =>
+      httpDelete[String](s"$nodeUrl/api/repos/$repositoryName")
 
-      NodeManager.allNodes()
-        .find { case (node, _) => node == deleteNode }
-        .foreach { case (node, status) =>
-          NodeManager.updateNodeStatus(node, status.diskUsage, status.repos.filterNot(_ == name))
-        }
+      NodeManager.findNode(nodeUrl).foreach { case (_, status) =>
+        NodeManager.updateNodeStatus(nodeUrl, status.diskUsage, status.repos.filterNot(_ == repositoryName))
+      }
     }
   }
 
-  @Action(method = "POST", path = "/api/repos/{name}")
-  def createRepository(name: String): Unit = {
-    val nodes = NodeManager.allNodes()
+  @Action(method = "POST", path = "/api/repos/{repositoryName}")
+  def createRepository(repositoryName: String): Unit = {
+    val nodeUrls = NodeManager.allNodes()
       .filter { case (_, status) => status.diskUsage < config.maxDiskUsage }
       .take(config.replica)
 
-    if(nodes.nonEmpty){
-      nodes.foreach { case (node, status) =>
-        httpPost(s"$node/api/repos/${name}", Map.empty)
+    if(nodeUrls.nonEmpty){
+      nodeUrls.foreach { case (nodeUrl, status) =>
+        httpPost(s"$nodeUrl/api/repos/${repositoryName}", Map.empty)
         // update repository status immediately
-        NodeManager.updateNodeStatus(node, status.diskUsage, status.repos :+ name)
+        NodeManager.updateNodeStatus(nodeUrl, status.diskUsage, status.repos :+ repositoryName)
       }
     } else {
       throw new RuntimeException("There are no nodes which can accommodate a new repository")
@@ -53,4 +51,4 @@ class APIController(config: Config) extends HttpClientSupport {
 
 }
 
-case class Node(node: String, diskUsage: Double, repos: Seq[String])
+case class Node(url: String, diskUsage: Double, repos: Seq[String])

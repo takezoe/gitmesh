@@ -8,14 +8,14 @@ import org.eclipse.jgit.lib.{Constants, RepositoryBuilder}
 
 trait GitOperations {
 
-  def gitCheckEmpty(name: String)(implicit config: Config): Boolean = {
-    using(Git.open(new File(config.directory, name))){ git =>
+  def gitCheckEmpty(repositoryName: String)(implicit config: Config): Boolean = {
+    using(Git.open(new File(config.directory, repositoryName))){ git =>
       git.getRepository.resolve(Constants.HEAD) == null
     }
   }
 
-  def gitInit(name: String)(implicit config: Config): Unit = {
-    using(new RepositoryBuilder().setGitDir(new File(config.directory, name)).setBare.build){ repository =>
+  def gitInit(repositoryName: String)(implicit config: Config): Unit = {
+    using(new RepositoryBuilder().setGitDir(new File(config.directory, repositoryName)).setBare.build){ repository =>
       repository.create(true)
       defining(repository.getConfig){ config =>
         config.setBoolean("http", null, "receivepack", true)
@@ -24,9 +24,9 @@ trait GitOperations {
     }
   }
 
-  def gitClone(name: String, sourceUrl: String)(implicit config: Config): Unit = {
+  def gitClone(repositoryName: String, sourceUrl: String)(implicit config: Config): Unit = {
     using(Git.cloneRepository().setBare(true).setURI(sourceUrl)
-      .setDirectory(new File(config.directory, name)).setCloneAllBranches(true).call()){ git =>
+      .setDirectory(new File(config.directory, repositoryName)).setCloneAllBranches(true).call()){ git =>
       using(git.getRepository){ repository =>
         defining(repository.getConfig){ config =>
           config.setBoolean("http", null, "receivepack", true)

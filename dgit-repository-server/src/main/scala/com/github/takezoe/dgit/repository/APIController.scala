@@ -18,16 +18,16 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
     val repos = rootDir.listFiles(_.isDirectory).toSeq.map(_.getName)
 
     Status(
-      endpoint = config.endpoint,
+      url = config.url,
       diskUsage = diskUsage,
       repos = repos
     )
   }
 
-  @Action(method = "POST", path = "/api/repos/{name}")
-  def createRepository(name: String): Unit = {
-    log.info(s"Create repository: $name")
-    gitInit(name)
+  @Action(method = "POST", path = "/api/repos/{repositoryName}")
+  def createRepository(repositoryName: String): Unit = {
+    log.info(s"Create repository: $repositoryName")
+    gitInit(repositoryName)
   }
 
   @Action(method = "GET", path = "/api/repos")
@@ -38,49 +38,49 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
     }
   }
 
-  @Action(method = "GET", path = "/api/repos/{name}")
-  def showRepositoryStatus(name: String): ActionResult[Repository] = {
-    val dir = new File(config.directory, name)
+  @Action(method = "GET", path = "/api/repos/{repositoryName}")
+  def showRepositoryStatus(repositoryName: String): ActionResult[Repository] = {
+    val dir = new File(config.directory, repositoryName)
     if(dir.exists()){
-      Ok(Repository(name, gitCheckEmpty(name)))
+      Ok(Repository(repositoryName, gitCheckEmpty(repositoryName)))
     } else {
       NotFound()
     }
   }
 
-  @Action(method="DELETE", path = "/api/repos/{name}")
-  def deleteRepository(name: String): Unit = {
-    log.info(s"Delete repository: $name")
+  @Action(method="DELETE", path = "/api/repos/{repositoryName}")
+  def deleteRepository(repositoryName: String): Unit = {
+    log.info(s"Delete repository: $repositoryName")
 
-    val dir = new File(config.directory, name)
+    val dir = new File(config.directory, repositoryName)
     if(dir.exists){
       FileUtils.forceDelete(dir)
     }
   }
 
-  @Action(method = "PUT", path = "/api/repos/{name}")
-  def cloneRepository(name: String, request: CloneRequest): Unit = {
-    val cloneUrl = s"${config.endpoint}/git/$name.git"
-    log.info(s"Synchronize repository: $name with ${cloneUrl}")
+  @Action(method = "PUT", path = "/api/repos/{repositoryName}")
+  def cloneRepository(repositoryName: String, request: CloneRequest): Unit = {
+    val cloneUrl = s"${config.url}/git/$repositoryName.git"
+    log.info(s"Synchronize repository: $repositoryName with ${cloneUrl}")
 
-    defining(new File(config.directory, name)){ dir =>
+    defining(new File(config.directory, repositoryName)){ dir =>
       // Delete the repository directory if it exists
       if(dir.exists){
         FileUtils.forceDelete(dir)
       }
     }
 
-    httpGet[Repository](s"${request.endpoint}/api/repos/$name") match {
+    httpGet[Repository](s"${request.nodeUrl}/api/repos/$repositoryName") match {
       case Left(e) => throw new RuntimeException(e.errors.mkString("\n"))
       // Source is an empty repository
-      case Right(x) if x.empty => gitInit(name)
+      case Right(x) if x.empty => gitInit(repositoryName)
       // Clone from the source repository
-      case _ => gitClone(name, cloneUrl)
+      case _ => gitClone(repositoryName, cloneUrl)
     }
   }
 
 }
 
-case class Status(endpoint: String, diskUsage: Double, repos: Seq[String])
-case class CloneRequest(endpoint: String)
+case class Status(url: String, diskUsage: Double, repos: Seq[String])
+case class CloneRequest(nodeUrl: String)
 case class Repository(name: String, empty: Boolean)

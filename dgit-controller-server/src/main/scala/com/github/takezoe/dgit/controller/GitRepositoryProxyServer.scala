@@ -81,7 +81,6 @@ class GitRepositoryProxyServer extends HttpServlet {
 
       req.getHeaderNames.asScala.foreach { name =>
         builder.addHeader(name, req.getHeader(name))
-        println(name + ": " + req.getHeader(name))
       }
 
       val request = builder.build()

@@ -51,7 +51,7 @@ class HeartBeatActor(config: Config) extends Actor with HttpClientSupport {
 
       httpPostJson[String](
         s"${config.controllerUrl}/api/nodes/join",
-        Node(config.endpoint, diskUsage, repos)
+        Node(config.url, diskUsage, repos)
       ) match {
         case Right(_) => // success
         case Left(e) => log.error(e.errors.mkString("\n"))
@@ -61,4 +61,4 @@ class HeartBeatActor(config: Config) extends Actor with HttpClientSupport {
 
 }
 
-case class Node(node: String, diskUsage: Double, repos: Seq[String])
+case class Node(url: String, diskUsage: Double, repos: Seq[String])
