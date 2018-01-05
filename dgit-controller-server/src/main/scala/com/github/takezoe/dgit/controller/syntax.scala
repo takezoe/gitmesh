@@ -1,6 +1,6 @@
 package com.github.takezoe.dgit.controller
 
-object Utils {
+object syntax {
 
   def using[A <% { def close(): Unit }, B](r: A)(f: A => B): B =
     try f(r) finally {
@@ -19,11 +19,22 @@ object Utils {
       }
     }
 
+  def defining[T, R](value: T)(f: T => R): R = {
+    f(value)
+  }
+
   def ignoreException[T](f: => T): Option[T] = {
     try {
       Some(f)
     } catch {
       case _: Exception => None
+    }
+  }
+
+  implicit class AnyOps[T](value: T){
+    def unsafeTap(f: T => Unit): T = {
+      f(value)
+      value
     }
   }
 
