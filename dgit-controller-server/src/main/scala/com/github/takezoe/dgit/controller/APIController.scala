@@ -1,6 +1,6 @@
 package com.github.takezoe.dgit.controller
 
-import com.github.takezoe.resty.{Action, HttpClientSupport}
+import com.github.takezoe.resty._
 
 class APIController(config: Config) extends HttpClientSupport {
 
@@ -33,19 +33,25 @@ class APIController(config: Config) extends HttpClientSupport {
   }
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}")
-  def createRepository(repositoryName: String): Unit = {
-    val nodeUrls = NodeManager.allNodes()
-      .filter { case (_, status) => status.diskUsage < config.maxDiskUsage }
-      .take(config.replica)
+  def createRepository(repositoryName: String): ActionResult[Unit] = {
+    if(NodeManager.allRepositories().exists(_.name == repositoryName)){
+      BadRequest(ErrorModel(Seq("Repository already exists.")))
 
-    if(nodeUrls.nonEmpty){
-      nodeUrls.foreach { case (nodeUrl, status) =>
-        httpPost(s"$nodeUrl/api/repos/${repositoryName}", Map.empty)
-        // update repository status immediately
-        NodeManager.updateNodeStatus(nodeUrl, status.diskUsage, status.repos :+ repositoryName)
-      }
     } else {
-      throw new RuntimeException("There are no nodes which can accommodate a new repository")
+      val nodeUrls = NodeManager.allNodes()
+        .filter { case (_, status) => status.diskUsage < config.maxDiskUsage }
+        .take(config.replica)
+
+      if(nodeUrls.nonEmpty){
+        nodeUrls.foreach { case (nodeUrl, status) =>
+          httpPost(s"$nodeUrl/api/repos/${repositoryName}", Map.empty)
+          // update repository status immediately
+          NodeManager.updateNodeStatus(nodeUrl, status.diskUsage, status.repos :+ repositoryName)
+        }
+        Ok((): Unit)
+      } else {
+        BadRequest(ErrorModel(Seq("There are no nodes which can accommodate a new repository")))
+      }
     }
   }
 

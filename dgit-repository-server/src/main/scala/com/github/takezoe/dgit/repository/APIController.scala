@@ -11,11 +11,16 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
 
   private val log = LoggerFactory.getLogger(classOf[APIController])
 
+  private def getRepositories(): Seq[String] = {
+    val rootDir = new File(config.directory)
+    rootDir.listFiles(_.isDirectory).toSeq.map(_.getName)
+  }
+
   @Action(method = "GET", path = "/")
   def status(): Status = {
     val rootDir = new File(config.directory)
     val diskUsage = rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble
-    val repos = rootDir.listFiles(_.isDirectory).toSeq.map(_.getName)
+    val repos = getRepositories()
 
     Status(
       url = config.url,
@@ -25,9 +30,14 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   }
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}")
-  def createRepository(repositoryName: String): Unit = {
-    log.info(s"Create repository: $repositoryName")
-    gitInit(repositoryName)
+  def createRepository(repositoryName: String): ActionResult[Unit] = {
+    if(getRepositories().contains(repositoryName)){
+      BadRequest(ErrorModel(Seq("Repository already exists.")))
+    } else {
+      log.info(s"Create repository: $repositoryName")
+      gitInit(repositoryName)
+      Ok((): Unit)
+    }
   }
 
   @Action(method = "GET", path = "/api/repos")
