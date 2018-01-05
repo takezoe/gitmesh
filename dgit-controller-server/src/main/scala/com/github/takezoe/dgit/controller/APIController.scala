@@ -21,7 +21,7 @@ class APIController(config: Config) extends HttpClientSupport {
     NodeManager.allRepositories()
   }
 
-  @Action(method="DELETE", path = "/api/repos/{name}")
+  @Action(method = "DELETE", path = "/api/repos/{name}")
   def deleteRepository(name: String): Unit = {
     NodeManager.selectNodes(name).foreach { deleteNode =>
       httpDelete[String](s"$deleteNode/api/repos/$name")
@@ -34,7 +34,7 @@ class APIController(config: Config) extends HttpClientSupport {
     }
   }
 
-  @Action(method="POST", path = "/api/repos/{name}")
+  @Action(method = "POST", path = "/api/repos/{name}")
   def createRepository(name: String): Unit = {
     val nodes = NodeManager.allNodes()
       .filter { case (_, status) => status.diskUsage < config.maxDiskUsage }
