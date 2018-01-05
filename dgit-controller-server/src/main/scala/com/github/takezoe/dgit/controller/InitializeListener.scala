@@ -41,12 +41,12 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
   override def receive = {
     case _ => {
       // Check died nodes
-      val timeout = System.currentTimeMillis() - (30 * 1000)
+      val timeout = System.currentTimeMillis() - (60 * 1000)
 
-      NodeManager.allNodes().foreach { case (node, status) =>
+      NodeManager.allNodes().foreach { case (nodeUrl, status) =>
         if(status.timestamp < timeout){
-          log.warning(s"$node is retired.")
-          NodeManager.removeNode(node)
+          log.warning(s"$nodeUrl is retired.")
+          NodeManager.removeNode(nodeUrl)
         }
       }
 
