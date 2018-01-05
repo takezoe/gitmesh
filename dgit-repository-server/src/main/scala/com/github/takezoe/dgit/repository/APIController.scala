@@ -3,9 +3,10 @@ package com.github.takezoe.dgit.repository
 import java.io.File
 
 import syntax._
-
 import com.github.takezoe.resty._
 import org.apache.commons.io.FileUtils
+import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.lib.Constants
 import org.slf4j.LoggerFactory
 
 class APIController(implicit val config: Config) extends HttpClientSupport with GitOperations {
@@ -35,6 +36,19 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   def listRepositories(): Seq[String] = {
     val rootDir = new File(config.directory)
     rootDir.listFiles(_.isDirectory).toSeq.map(_.getName)
+  }
+
+  @Action(method = "GET", path = "/api/repos/{name}")
+  def showRepositoryStatus(name: String): ActionResult[Repository] = {
+    val dir = new File(config.directory, name)
+    if(dir.exists()){
+      val isEmpty = using(Git.open(dir)){ git =>
+        git.getRepository.resolve(Constants.HEAD) == null
+      }
+      Ok(Repository(name, isEmpty))
+    } else {
+      NotFound()
+    }
   }
 
   @Action(method="DELETE", path = "/api/repos/{name}")
