@@ -2,9 +2,10 @@ package com.github.takezoe.dgit.repository
 
 import java.io.File
 
+import syntax._
+
 import com.github.takezoe.resty._
 import org.eclipse.jgit.lib.RepositoryBuilder
-import Utils._
 import org.apache.commons.io.FileUtils
 import org.eclipse.jgit.api.Git
 import org.slf4j.LoggerFactory
@@ -32,9 +33,10 @@ class APIController(config: Config) {
 
     using(new RepositoryBuilder().setGitDir(new File(config.directory, name)).setBare.build){ repository =>
       repository.create(true)
-      val config = repository.getConfig
-      config.setBoolean("http", null, "receivepack", true)
-      config.save
+      defining(repository.getConfig){ config =>
+        config.setBoolean("http", null, "receivepack", true)
+        config.save
+      }
     }
   }
 
@@ -76,9 +78,10 @@ class APIController(config: Config) {
       .setCloneAllBranches(true)
       .call()){ git =>
       using(git.getRepository){ repository =>
-        val config = repository.getConfig
-        config.setBoolean("http", null, "receivepack", true)
-        config.save
+        defining(repository.getConfig){ config =>
+          config.setBoolean("http", null, "receivepack", true)
+          config.save
+        }
       }
     }
   }

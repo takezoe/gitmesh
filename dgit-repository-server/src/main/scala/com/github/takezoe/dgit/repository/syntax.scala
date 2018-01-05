@@ -1,6 +1,6 @@
 package com.github.takezoe.dgit.repository
 
-object Utils {
+object syntax {
 
   def using[A <% { def close(): Unit }, B](r: A)(f: A => B): B =
     try f(r) finally {
@@ -18,6 +18,10 @@ object Utils {
         ignoreException { r2.close() }
       }
     }
+
+  def defining[T, R](value: T)(f: T => R): R = {
+    f(value)
+  }
 
   def ignoreException[T](f: => T): Option[T] = {
     try {
