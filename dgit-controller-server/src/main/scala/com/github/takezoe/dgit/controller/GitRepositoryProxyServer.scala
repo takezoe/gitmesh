@@ -6,8 +6,9 @@ import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 import scala.collection.JavaConverters._
 import okhttp3.{MediaType, OkHttpClient, Request, RequestBody}
 import org.apache.commons.io.{FileUtils, IOUtils}
-import Utils._
 import org.slf4j.LoggerFactory
+
+import syntax._
 
 class GitRepositoryProxyServer extends HttpServlet {
 
