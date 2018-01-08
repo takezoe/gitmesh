@@ -6,7 +6,8 @@
   <!--================================================================================================-->
   <createTable tableName="REPOSITORY_NODE_STATUS">
     <column name="NODE_URL" type="varchar(200)" nullable="false"/>
-    <column name="DISK_USAGE" type="varchar(200)" nullable="false"/>
+    <column name="LAST_UPDATE_TIME" type="int" nullable="false"/>
+    <column name="DISK_USAGE" type="decimal(3, 2)" nullable="false"/>
   </createTable>
 
   <addPrimaryKey constraintName="IDX_REPOSITORY_NODE_STATUS_PK" tableName="REPOSITORY_NODE_STATUS" columnNames="NODE_URL"/>
@@ -16,7 +17,7 @@
   <!--================================================================================================-->
   <createTable tableName="REPOSITORY">
     <column name="REPOSITORY_NAME" type="varchar(200)" nullable="false"/>
-    <column name="PRIMARY_NODE" type="varchar(200)" nullable="false"/>
+    <column name="PRIMARY_NODE" type="varchar(200)" nullable="true"/>
   </createTable>
 
   <addPrimaryKey constraintName="IDX_REPOSITORY_PK" tableName="REPOSITORY" columnNames="REPOSITORY_NAME"/>
@@ -28,6 +29,7 @@
   <createTable tableName="REPOSITORY_NODE">
     <column name="NODE_URL" type="varchar(200)" nullable="false"/>
     <column name="REPOSITORY_NAME" type="varchar(200)" nullable="false"/>
+    <column name="STATUS" type="varchar(100)" nullable="false"/>
   </createTable>
 
   <addPrimaryKey constraintName="IDX_REPOSITORY_NODE_PK" tableName="REPOSITORY_NODE" columnNames="NODE_URL, REPOSITORY_NAME"/>

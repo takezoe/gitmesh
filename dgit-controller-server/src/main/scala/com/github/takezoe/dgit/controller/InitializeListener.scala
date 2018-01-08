@@ -15,6 +15,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import io.github.gitbucket.solidbase.migration.{LiquibaseMigration, SqlMigration}
 import io.github.gitbucket.solidbase.model.{Module, Version}
 import liquibase.database.core.PostgresDatabase
+import com.github.takezoe.scala.jdbc._
+import syntax._
 
 @WebListener
 class InitializeListener extends ServletContextListener {
@@ -33,7 +35,16 @@ class InitializeListener extends ServletContextListener {
 
     // Initialize the node status db
     Database.initializeDataSource(config.database)
+
     Database.withTransaction { conn =>
+      // Drop all tables
+      defining(DB(conn)){ db =>
+        db.update(sql"DROP TABLE VERSIONS")
+        db.update(sql"DROP TABLE REPOSITORY_NODE")
+        db.update(sql"DROP TABLE REPOSITORY")
+        db.update(sql"DROP TABLE REPOSITORY_NODE_STATUS")
+      }
+      // Re-create empty tables
       new Solidbase().migrate(conn, Thread.currentThread.getContextClassLoader, new PostgresDatabase(), DGitMigrationModule)
     }
 
