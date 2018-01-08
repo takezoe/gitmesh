@@ -6,7 +6,7 @@
   <!--================================================================================================-->
   <createTable tableName="REPOSITORY_NODE_STATUS">
     <column name="NODE_URL" type="varchar(200)" nullable="false"/>
-    <column name="LAST_UPDATE_TIME" type="int" nullable="false"/>
+    <column name="LAST_UPDATE_TIME" type="bigint" nullable="false"/>
     <column name="DISK_USAGE" type="decimal(3, 2)" nullable="false"/>
   </createTable>
 

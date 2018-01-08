@@ -68,37 +68,59 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
 
   override def receive = {
     case _ => {
-      // Check died nodes
+      // Check dead nodes
       val timeout = System.currentTimeMillis() - (60 * 1000)
 
-      NodeManager.allNodes().foreach { case (nodeUrl, status) =>
-        if(status.timestamp < timeout){
-          log.warning(s"$nodeUrl is retired.")
-          NodeManager.removeNode(nodeUrl)
+      Database.withTransaction { implicit conn =>
+        NodeManager.allNodes().foreach { case (nodeUrl, status) =>
+          if(status.timestamp < timeout){
+            log.warning(s"$nodeUrl is retired.")
+            NodeManager.removeNode(nodeUrl)
+          }
         }
       }
 
-      // Add replica if it's needed
-      NodeManager.allRepositories()
-        .filter { repository => repository.nodes.size < config.replica }
-        .foreach { repository =>
-          val lackOfReplicas = config.replica - repository.nodes.size
-          if(lackOfReplicas > 0){
-            RepositoryLock.execute(repository.name){
-              (1 to config.replica - repository.nodes.size).flatMap { _ =>
-                NodeManager.getUrlOfAvailableNode(repository.name).map { nodeUrl =>
-                  // Create replica
-                  httpPutJson(s"$nodeUrl/api/repos/${repository.name}", CloneRequest(repository.primaryNode))
-                  // Update node status
-                  NodeManager.getNodeStatus(nodeUrl).foreach { status =>
-                    NodeManager.updateNodeStatus(nodeUrl, status.diskUsage, status.repos :+ repository.name)
+      val repos = Database.withTransaction { implicit conn =>
+        NodeManager.allRepositories()
+      }
+
+      repos
+        .filter { x => x.enablesNodes.size < config.replica }
+        .foreach { x =>
+          x.primaryNode match {
+            case None =>
+              x.disabledNodes.headOption.foreach { node =>
+                // Set the primary node
+                Database.withTransaction { implicit conn =>
+                  NodeManager.promotePrimaryNode(node.nodeUrl, x.name)
+                }
+                // retry to create replicas
+                createReplicas()
+              }
+            case Some(primaryNode) =>
+              // Add replica if it's needed
+              val lackOfReplicas = config.replica - x.enablesNodes.size
+              // TODO Need another solution to lock repository operation
+              RepositoryLock.execute(x.name){
+                (1 to lackOfReplicas).foreach { _ =>
+                  // TODO check disk usage as well
+                  Database.withTransaction { implicit conn =>
+                    NodeManager.getUrlOfAvailableNode(x.name).map { nodeUrl =>
+                      // Create replica repository
+                      httpPutJson(s"$nodeUrl/api/repos/${x.name}", CloneRequest(primaryNode))
+                      // update node status in the database
+                      NodeManager.createRepository(nodeUrl, x.name)
+                    }
                   }
                 }
               }
-            }
           }
         }
     }
+  }
+
+  private def createReplicas(): Unit = {
+
   }
 }
 

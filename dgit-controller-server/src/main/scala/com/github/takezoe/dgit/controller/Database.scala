@@ -43,7 +43,17 @@ object Database {
         case e: Exception =>
           conn.rollback()
           throw e
-      } finally {
+      } finally ignoreException {
+        conn.close()
+      }
+    }
+  }
+
+  def withSession[T](f: (Connection) => T): T = {
+    using(dataSource.getConnection){ conn =>
+      try {
+        f(conn)
+      } finally ignoreException {
         conn.close()
       }
     }

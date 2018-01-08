@@ -21,7 +21,9 @@ class GitRepositoryProxyServer extends HttpServlet {
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
     RepositoryLock.execute(repositoryName) {
-      val nodes = NodeManager.getNodeUrlsOfRepository(repositoryName)
+      val nodes = Database.withSession { implicit conn =>
+        NodeManager.getNodeUrlsOfRepository(repositoryName)
+      }
 
       if (nodes.nonEmpty) {
         val tmpFile = File.createTempFile("dgit", "tmpfile")
@@ -59,7 +61,9 @@ class GitRepositoryProxyServer extends HttpServlet {
               // If request failed remove the node
               case e: Exception =>
                 log.error(s"Remove node $node by error: ${e.toString}")
-                NodeManager.removeNode(node)
+                Database.withTransaction { implicit conn =>
+                  NodeManager.removeNode(node)
+                }
             }
           }
         } finally {
@@ -76,8 +80,12 @@ class GitRepositoryProxyServer extends HttpServlet {
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
-    NodeManager.getUrlOfPrimaryNode(repositoryName).map { node =>
-      val builder = new Request.Builder().url(node + path + (if(queryString == null) "" else "?" + queryString))
+    val primaryNode = Database.withSession { implicit conn =>
+      NodeManager.getUrlOfPrimaryNode(repositoryName)
+    }
+
+    primaryNode.map { nodeUrl =>
+      val builder = new Request.Builder().url(nodeUrl + path + (if(queryString == null) "" else "?" + queryString))
 
       req.getHeaderNames.asScala.foreach { name =>
         builder.addHeader(name, req.getHeader(name))
@@ -100,11 +108,14 @@ class GitRepositoryProxyServer extends HttpServlet {
       } catch {
         // If request failed, remove the node and try other nodes
         case e: Exception =>
-          log.error(s"Remove node $node by error: ${e.toString}")
-          NodeManager.removeNode(node)
+          log.error(s"Remove node $nodeUrl by error: ${e.toString}")
+          Database.withTransaction { implicit conn =>
+            NodeManager.removeNode(nodeUrl)
+          }
           doGet(req, resp)
       }
     }.getOrElse {
+      // TODO 404
       throw new RuntimeException(s"There are no available nodes for $repositoryName")
     }
   }
