@@ -10,6 +10,7 @@ libraryDependencies ++= Seq(
   "com.github.takezoe"        %% "resty"                        % "0.0.14",
   "com.github.takezoe"        %% "scala-jdbc"                   % "1.0.5",
   "com.zaxxer"                 %  "HikariCP"                    % "2.7.4",
+  "io.github.gitbucket"        %  "solidbase"                   % "1.0.2",
   "org.postgresql"             %  "postgresql"                  % "42.1.4",
   "commons-io"                 % "commons-io"                   % "2.6",
   //"org.apache.httpcomponents"  % "httpclient"                   % "4.5.4",

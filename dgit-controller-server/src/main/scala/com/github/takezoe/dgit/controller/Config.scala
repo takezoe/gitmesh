@@ -25,18 +25,18 @@ object Config {
   def load(): Config = {
     implicit val c = ConfigFactory.load()
     Config(
-      replica = c.getInt("dgit.replica"),
+      replica      = c.getInt("dgit.replica"),
       maxDiskUsage = c.getDouble("dgit.maxDiskUsage"),
-      database = DatabaseConfig(
-        driver = c.getString("database.driver"),
-        url = c.getString("database.url"),
-        user = c.getString("database.user"),
-        password = c.getString("database.password"),
-        connectionTimeout = getOptionValue("database.connectionTimeout", c.getLong),
-        idleTimeout = getOptionValue("database.idleTimeout", c.getLong),
-        maxLifetime = getOptionValue("database.maxLifetime", c.getLong),
-        minimumIdle = getOptionValue("database.minimumIdle", c.getInt),
-        maximumPoolSize = getOptionValue("database.maximumPoolSize", c.getInt)
+      database     = DatabaseConfig(
+        driver            = c.getString("dgit.database.driver"),
+        url               = c.getString("dgit.database.url"),
+        user              = c.getString("dgit.database.user"),
+        password          = c.getString("dgit.database.password"),
+        connectionTimeout = getOptionValue("dgit.database.connectionTimeout", c.getLong),
+        idleTimeout       = getOptionValue("dgit.database.idleTimeout", c.getLong),
+        maxLifetime       = getOptionValue("dgit.database.maxLifetime", c.getLong),
+        minimumIdle       = getOptionValue("dgit.database.minimumIdle", c.getInt),
+        maximumPoolSize   = getOptionValue("dgit.database.maximumPoolSize", c.getInt)
       )
     )
   }

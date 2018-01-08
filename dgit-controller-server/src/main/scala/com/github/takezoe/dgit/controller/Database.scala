@@ -1,5 +1,7 @@
 package com.github.takezoe.dgit.controller
 
+import java.sql.Connection
+
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import syntax._
 
@@ -28,6 +30,23 @@ object Database {
 
   def closeDataSource(): Unit = {
     dataSource.close()
+  }
+
+  def withTransaction[T](f: (Connection) => T): T = {
+    using(dataSource.getConnection){ conn =>
+      conn.setAutoCommit(false)
+      try {
+        f(conn).unsafeTap { _ =>
+          conn.commit()
+        }
+      } catch {
+        case e: Exception =>
+          conn.rollback()
+          throw e
+      } finally {
+        conn.close()
+      }
+    }
   }
 
 }

@@ -7,10 +7,14 @@ import com.github.takezoe.resty._
 import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
 import akka.actor._
 import akka.event.Logging
+import io.github.gitbucket.solidbase.Solidbase
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global // TODO
+import scala.concurrent.ExecutionContext.Implicits.global
+import io.github.gitbucket.solidbase.migration.{LiquibaseMigration, SqlMigration}
+import io.github.gitbucket.solidbase.model.{Module, Version}
+import liquibase.database.core.PostgresDatabase
 
 @WebListener
 class InitializeListener extends ServletContextListener {
@@ -20,19 +24,32 @@ class InitializeListener extends ServletContextListener {
   override def contextDestroyed(sce: ServletContextEvent): Unit = {
     val f = system.terminate()
     Await.result(f, 30.seconds)
+
+    Database.closeDataSource()
   }
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
     val config = Config.load()
 
+    // Initialize the node status db
+    Database.initializeDataSource(config.database)
+    Database.withTransaction { conn =>
+      new Solidbase().migrate(conn, Thread.currentThread.getContextClassLoader, new PostgresDatabase(), DGitMigrationModule)
+    }
+
+    // Setup controllers
     Resty.register(new APIController(config))
 
+    // Start background jobs
     val scheduler = QuartzSchedulerExtension(system)
     scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[CheckRepositoryNodeActor], config)), "tick")
-
   }
 
 }
+
+object DGitMigrationModule extends Module("dgit",
+  new Version("1.0.0", new LiquibaseMigration("update/dgit-database-1.0.0.xml"))
+)
 
 class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupport {
 
