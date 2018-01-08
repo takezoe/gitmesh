@@ -10,7 +10,7 @@ libraryDependencies ++= Seq(
   "com.github.takezoe"        %% "resty"                        % "0.0.14",
   "commons-io"                 % "commons-io"                   % "2.6",
   //"org.apache.httpcomponents"  % "httpclient"                   % "4.5.4",
-  "com.h2database"             % "h2"                           % "1.4.196",
+  //"com.h2database"             % "h2"                           % "1.4.196",
   "ch.qos.logback"             % "logback-classic"              % "1.2.3",
   "com.zaxxer"                 % "HikariCP"                     % "2.7.4",
   "com.typesafe.akka"         %% "akka-actor"                   % "2.5.8",
