@@ -1,5 +1,6 @@
 package com.github.takezoe.dgit.controller
 
+import java.sql.Connection
 import javax.servlet.{ServletContextEvent, ServletContextListener}
 import javax.servlet.annotation.WebListener
 
@@ -36,13 +37,18 @@ class InitializeListener extends ServletContextListener {
     // Initialize the node status db
     Database.initializeDataSource(config.database)
 
-    Database.withTransaction { conn =>
+    Database.withTransaction { implicit conn =>
       // Drop all tables
       defining(DB(conn)){ db =>
 //        db.update(sql"DROP TABLE IF EXISTS VERSIONS")
 //        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE")
-        db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
+//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
 //        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE_STATUS")
+        if(checkTableExist()){
+          db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL")
+          db.update(sql"DELETE FROM REPOSITORY_NODE")
+          db.update(sql"DELETE FROM REPOSITORY_NODE_STATUS")
+        }
       }
       // Re-create empty tables
       new Solidbase().migrate(conn, Thread.currentThread.getContextClassLoader, new PostgresDatabase(), DGitMigrationModule)
@@ -54,6 +60,18 @@ class InitializeListener extends ServletContextListener {
     // Start background jobs
     val scheduler = QuartzSchedulerExtension(system)
     scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[CheckRepositoryNodeActor], config)), "tick")
+  }
+
+  protected def checkTableExist()(implicit conn: Connection): Boolean = {
+    using(conn.getMetaData().getTables(null, null, "%", Array[String]("TABLE"))){ rs =>
+      while(rs.next()){
+        val tableName = rs.getString("TABLE_NAME")
+        if(tableName.toUpperCase() == "VERSIONS"){
+          return true
+        }
+      }
+    }
+    return false
   }
 
 }
