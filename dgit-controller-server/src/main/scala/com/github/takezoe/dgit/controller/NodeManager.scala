@@ -44,25 +44,25 @@ object NodeManager extends HttpClientSupport {
     }
   }
 
-  def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[String])(implicit conn: Connection): Unit = {
+  def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[JoinNodeRepository], replica: Int)(implicit conn: Connection): Unit = {
     log.info(s"Add new node: $nodeUrl")
     defining(DB(conn)){ db =>
-      db.update(sql"""
-              INSERT INTO NODE
-                (NODE_URL, LAST_UPDATE_TIME, DISK_USAGE)
-              VALUES
-                ($nodeUrl, ${System.currentTimeMillis}, $diskUsage)
-            """)
+      val timestamp = System.currentTimeMillis
+      db.update(sql"INSERT INTO NODE (NODE_URL, LAST_UPDATE_TIME, DISK_USAGE) VALUES ($nodeUrl, $timestamp, $diskUsage)")
 
-      // TODO Fix this!!
-      repos.foreach { repositoryName =>
-        if(existRepository(repositoryName)){
-          db.update(sql"""
-                INSERT INTO NODE_REPOSITORY
-                  (NODE_URL, REPOSITORY_NAME, STATUS)
-                VALUES
-                  ($nodeUrl, $repositoryName, ${Status.Preparing})
-              """)
+      repos.foreach { repo =>
+        RepositoryLock.execute(repo.name){
+          val repository = getRepositoryStatus(repo.name)
+
+          repository match  {
+            case Some(x) if x.timestamp == repo.timestamp && x.nodes.size < replica =>
+              if(x.primaryNode.isEmpty){
+                db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = ${repo.name}")
+              }
+              db.update(sql"INSERT INTO NODE_REPOSITORY (NODE_URL, REPOSITORY_NAME, STATUS) VALUES ($nodeUrl, ${repo.name}, ${Status.Ready})")
+            case _ =>
+              httpDelete(s"$nodeUrl/api/repos/${repo.name}")
+          }
         }
       }
     }
@@ -71,12 +71,8 @@ object NodeManager extends HttpClientSupport {
   def updateNodeStatus(nodeUrl: String, diskUsage: Double)(implicit conn: Connection): Unit = {
     log.info(s"Update node status: $nodeUrl")
     defining(DB(conn)){ db =>
-      db.update(sql"""
-         UPDATE NODE SET
-           LAST_UPDATE_TIME = ${System.currentTimeMillis},
-           DISK_USAGE       = $diskUsage
-         WHERE NODE_URL = $nodeUrl
-      """)
+      val timestamp = System.currentTimeMillis
+      db.update(sql"UPDATE NODE SET LAST_UPDATE_TIME = $timestamp, DISK_USAGE = $diskUsage WHERE NODE_URL = $nodeUrl")
     }
   }
 
@@ -136,13 +132,13 @@ object NodeManager extends HttpClientSupport {
     }
   }
 
-  def getUrlOfPrimaryNode(repositoryName: String)(implicit conn: Connection): Option[String] = {
-    defining(DB(conn)){ db =>
-      db.selectFirst(sql"SELECT PRIMARY_NODE FROM REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
-        rs.getString("PRIMARY_NODE")
-      }
-    }
-  }
+//  def getUrlOfPrimaryNode(repositoryName: String)(implicit conn: Connection): Option[String] = {
+//    defining(DB(conn)){ db =>
+//      db.selectFirst(sql"SELECT PRIMARY_NODE FROM REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
+//        rs.getString("PRIMARY_NODE")
+//      }
+//    }
+//  }
 
   def getNodeUrlsOfRepository(repositoryName: String)(implicit conn: Connection): Seq[String] = {
     defining(DB(conn)){ db =>
@@ -169,16 +165,30 @@ object NodeManager extends HttpClientSupport {
     }
   }
 
-  def allRepositories()(implicit conn: Connection): Seq[Repository] = {
+  def getRepositoryStatus(repositoryName: String)(implicit conn: Connection): Option[Repository] = {
     defining(DB(conn)){ db =>
-      val repos = db.select(sql"""SELECT REPOSITORY_NAME, PRIMARY_NODE FROM REPOSITORY"""){ rs =>
-        (rs.getString("REPOSITORY_NAME"), rs.getString("PRIMARY_NODE"))
+      val repos = db.selectFirst(sql"SELECT REPOSITORY_NAME, PRIMARY_NODE, LAST_UPDATE_TIME FROM REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
+        (rs.getString("REPOSITORY_NAME"), rs.getString("PRIMARY_NODE"), rs.getLong("LAST_UPDATE_TIME"))
       }
-      repos.map { case (repositoryName, primaryNode) =>
-        val nodes = db.select(sql"""SELECT NODE_URL, STATUS FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"""){ rs =>
+      repos.map { case (repositoryName, primaryNode, timestamp) =>
+        val nodes = db.select(sql"SELECT NODE_URL, STATUS FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
           RepositoryNode(rs.getString("NODE_URL"), rs.getString("STATUS"))
         }
-        Repository(repositoryName, Option(primaryNode), nodes)
+        Repository(repositoryName, Option(primaryNode), timestamp, nodes)
+      }
+    }
+  }
+
+  def allRepositories()(implicit conn: Connection): Seq[Repository] = {
+    defining(DB(conn)){ db =>
+      val repos = db.select(sql"SELECT REPOSITORY_NAME, PRIMARY_NODE, LAST_UPDATE_TIME FROM REPOSITORY"){ rs =>
+        (rs.getString("REPOSITORY_NAME"), rs.getString("PRIMARY_NODE"), rs.getLong("LAST_UPDATE_TIME"))
+      }
+      repos.map { case (repositoryName, primaryNode, timestamp) =>
+        val nodes = db.select(sql"SELECT NODE_URL, STATUS FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
+          RepositoryNode(rs.getString("NODE_URL"), rs.getString("STATUS"))
+        }
+        Repository(repositoryName, Option(primaryNode), timestamp, nodes)
       }
     }
   }
@@ -195,16 +205,16 @@ object NodeManager extends HttpClientSupport {
     }
   }
 
-  def promotePrimaryNode(nodeUrl: String, repositoryName: String)(implicit conn: Connection): Unit = {
-    defining(DB(conn)){ db =>
-      db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = $repositoryName")
-      db.update(sql"UPDATE NODE_REPOSITORY SET STATUS = ${Status.Ready} WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
-    }
-  }
+//  def promotePrimaryNode(nodeUrl: String, repositoryName: String)(implicit conn: Connection): Unit = {
+//    defining(DB(conn)){ db =>
+//      db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = $repositoryName")
+//      db.update(sql"UPDATE NODE_REPOSITORY SET STATUS = ${Status.Ready} WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
+//    }
+//  }
 
 }
 
-case class Repository(name: String, primaryNode: Option[String], nodes: Seq[RepositoryNode]){
+case class Repository(name: String, primaryNode: Option[String], timestamp: Long, nodes: Seq[RepositoryNode]){
   lazy val readyNodes  = nodes.filter(_.status == Status.Ready)
   lazy val preparingNodes = nodes.filter(_.status == Status.Preparing)
 }

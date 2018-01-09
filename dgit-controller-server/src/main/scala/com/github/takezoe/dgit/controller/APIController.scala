@@ -9,8 +9,7 @@ class APIController(config: Config) extends HttpClientSupport {
     if(NodeManager.existNode(node.url)){
       NodeManager.updateNodeStatus(node.url, node.diskUsage)
     } else {
-      // TODO Fix here!!
-      NodeManager.addNewNode(node.url, node.diskUsage, node.repos)
+      NodeManager.addNewNode(node.url, node.diskUsage, node.repos, config.replica)
     }
   }
 
@@ -60,8 +59,8 @@ class APIController(config: Config) extends HttpClientSupport {
 
 }
 
-// TODO
-case class JoinNodeRequest(url: String, diskUsage: Double, repos: Seq[String])
+case class JoinNodeRequest(url: String, diskUsage: Double, repos: Seq[JoinNodeRepository])
+case class JoinNodeRepository(name: String, timestamp: Long)
 
 case class Node(url: String, diskUsage: Double, repos: Seq[NodeRepository])
 case class NodeRepository(name: String, status: String)

@@ -81,7 +81,7 @@ class GitRepositoryProxyServer extends HttpServlet {
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
     val primaryNode = Database.withSession { implicit conn =>
-      NodeManager.getUrlOfPrimaryNode(repositoryName)
+      NodeManager.getRepositoryStatus(repositoryName).map(_.primaryNode).flatten
     }
 
     primaryNode.map { nodeUrl =>
