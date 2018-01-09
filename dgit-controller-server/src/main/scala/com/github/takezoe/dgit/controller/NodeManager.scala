@@ -18,18 +18,13 @@ object NodeManager extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(getClass)
 
-  def existRepository(repositoryName: String)(implicit conn: Connection): Boolean = {
-    defining(DB(conn)){ db =>
-      val count = db.selectFirst(
-        sql"SELECT COUNT(*) AS COUNT FROM REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"
-      ){ rs => rs.getInt("COUNT") }
-
-      count match {
-        case Some(i) if i > 0 => true
-        case _ => false
-      }
-    }
-  }
+//  def existRepository(repositoryName: String)(implicit conn: Connection): Option[Long] = {
+//    defining(DB(conn)){ db =>
+//      db.selectFirst(
+//        sql"SELECT LAST_UPDATE_TIME AS COUNT FROM REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"
+//      ){ rs => rs.getInt("LAST_UPDATE_TIME") }
+//    }
+//  }
 
   def existNode(nodeUrl: String)(implicit conn: Connection): Boolean = {
     defining(DB(conn)){ db =>
@@ -140,6 +135,12 @@ object NodeManager extends HttpClientSupport {
 //    }
 //  }
 
+  def updateRepositoryTimestamp(repositoryName: String, timestamp: Long)(implicit conn: Connection): Unit = {
+    defining(DB(conn)) { db =>
+      db.update(sql"UPDATE REPOSITORY SET LAST_UPDATE_TIME = $timestamp WHERE REPOSITORY_NAME = $repositoryName")
+    }
+  }
+
   def getNodeUrlsOfRepository(repositoryName: String)(implicit conn: Connection): Seq[String] = {
     defining(DB(conn)){ db =>
       db.select(sql"SELECT NODE_URL FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
@@ -155,10 +156,18 @@ object NodeManager extends HttpClientSupport {
     }
   }
 
-  def createRepository(nodeUrl: String, repositoryName: String)(implicit conn: Connection): Unit = {
+  def insertRepository(repositoryName: String)(implicit conn: Connection): Long = {
+    defining(DB(conn)) { db =>
+      System.currentTimeMillis.unsafeTap { timestamp =>
+        db.update(sql"INSERT INTO REPOSITORY (REPOSITORY_NAME, PRIMARY_NODE, LAST_UPDATE_TIME) VALUES ($repositoryName, NULL, $timestamp)")
+      }
+    }
+  }
+
+  def insertNodeRepository(nodeUrl: String, repositoryName: String)(implicit conn: Connection): Unit = {
     defining(DB(conn)){ db =>
-      if(!existRepository(repositoryName)){
-        db.update(sql"INSERT INTO REPOSITORY (REPOSITORY_NAME, PRIMARY_NODE, LAST_UPDATE_TIME) VALUES ($repositoryName, $nodeUrl, ${System.currentTimeMillis})")
+      if(getRepositoryStatus(repositoryName).map(_.primaryNode.isEmpty).getOrElse(false)){
+        db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = $repositoryName")
       }
       db.update(sql"DELETE FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
       db.update(sql"INSERT INTO NODE_REPOSITORY (NODE_URL, REPOSITORY_NAME, STATUS) VALUES ($nodeUrl, $repositoryName, ${Status.Ready})")
@@ -204,13 +213,6 @@ object NodeManager extends HttpClientSupport {
       }
     }
   }
-
-//  def promotePrimaryNode(nodeUrl: String, repositoryName: String)(implicit conn: Connection): Unit = {
-//    defining(DB(conn)){ db =>
-//      db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = $repositoryName")
-//      db.update(sql"UPDATE NODE_REPOSITORY SET STATUS = ${Status.Ready} WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
-//    }
-//  }
 
 }
 

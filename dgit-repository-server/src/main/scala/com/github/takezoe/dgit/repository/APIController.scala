@@ -30,15 +30,24 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   }
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}")
-  def createRepository(repositoryName: String): ActionResult[Unit] = {
+  def createRepository(repositoryName: String,
+                       @Param(from = "header", name = "DGIT-UPDATE-ID") timestamp: Long): ActionResult[Unit] = {
     // Delete the repository directory if it exists
     defining(new File(config.directory, repositoryName)){ dir =>
       if(dir.exists){
         FileUtils.forceDelete(dir)
       }
     }
+
     log.info(s"Create repository: $repositoryName")
+
+    // Write stimestamp
+    val file = new File(config.directory, s"$repositoryName.id")
+    FileUtils.write(file, timestamp.toString, "UTF-8")
+
+    // git init
     gitInit(repositoryName)
+
     Ok((): Unit)
   }
 
@@ -71,9 +80,14 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   }
 
   @Action(method = "PUT", path = "/api/repos/{repositoryName}")
-  def cloneRepository(repositoryName: String, request: CloneRequest): Unit = {
+  def cloneRepository(repositoryName: String, request: CloneRequest,
+                      @Param(from = "header", name = "DGIT-UPDATE-ID") timestamp: Long): Unit = {
     val cloneUrl = s"${config.url}/git/$repositoryName.git"
     log.info(s"Synchronize repository: $repositoryName with ${cloneUrl}")
+
+    // write timestamp
+    val file = new File(config.directory, s"$repositoryName.id")
+    FileUtils.write(file, timestamp.toString, "UTF-8")
 
     // Delete the repository directory if it exists
     defining(new File(config.directory, repositoryName)){ dir =>
@@ -82,6 +96,7 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
       }
     }
 
+    // Clone
     httpGet[Repository](s"${request.nodeUrl}/api/repos/$repositoryName") match {
       case Left(e) => throw new RuntimeException(e.errors.mkString("\n"))
       // Source is an empty repository

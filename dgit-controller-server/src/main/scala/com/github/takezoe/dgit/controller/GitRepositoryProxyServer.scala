@@ -21,7 +21,9 @@ class GitRepositoryProxyServer extends HttpServlet {
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
     RepositoryLock.execute(repositoryName) {
-      val nodes = Database.withSession { implicit conn =>
+      val timestamp = System.currentTimeMillis
+      val nodes = Database.withTransaction { implicit conn =>
+        NodeManager.updateRepositoryTimestamp(repositoryName, timestamp)
         NodeManager.getNodeUrlsOfRepository(repositoryName)
       }
 
@@ -41,6 +43,7 @@ class GitRepositoryProxyServer extends HttpServlet {
               builder.addHeader(name, req.getHeader(name))
             }
             builder.post(RequestBody.create(MediaType.parse(req.getContentType), tmpFile))
+            builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
 
             val request = builder.build()
 

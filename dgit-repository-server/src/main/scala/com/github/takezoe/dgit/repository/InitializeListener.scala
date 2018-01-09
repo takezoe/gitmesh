@@ -8,10 +8,10 @@ import com.github.takezoe.resty._
 import akka.actor._
 import akka.event.Logging
 import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
+import org.apache.commons.io.FileUtils
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-
 import syntax._
 
 @WebListener
@@ -47,11 +47,14 @@ class HeartBeatActor(config: Config) extends Actor with HttpClientSupport {
       }
 
       val diskUsage = 1.0d - (rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble)
-      val repos = rootDir.listFiles(_.isDirectory).toSeq.map(_.getName)
+      val repos = rootDir.listFiles(_.isDirectory).toSeq.map { dir =>
+        val timestamp = FileUtils.readFileToString(new File(rootDir, s"${dir.getName}.id"), "UTF-8").toLong
+        JoinNodeRepository(dir.getName, timestamp)
+      }
 
       httpPostJson[String](
         s"${config.controllerUrl}/api/nodes/join",
-        Node(config.url, diskUsage, repos)
+        JoinNodeRequest(config.url, diskUsage, repos)
       ) match {
         case Right(_) => // success
         case Left(e) => log.error(e.errors.mkString("\n"))
@@ -61,4 +64,5 @@ class HeartBeatActor(config: Config) extends Actor with HttpClientSupport {
 
 }
 
-case class Node(url: String, diskUsage: Double, repos: Seq[String])
+case class JoinNodeRequest(url: String, diskUsage: Double, repos: Seq[JoinNodeRepository])
+case class JoinNodeRepository(name: String, timestamp: Long)

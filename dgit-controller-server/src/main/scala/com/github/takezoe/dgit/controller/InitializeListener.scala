@@ -39,10 +39,10 @@ class InitializeListener extends ServletContextListener {
     Database.withTransaction { implicit conn =>
       // Drop all tables
       defining(DB(conn)){ db =>
-        db.update(sql"DROP TABLE IF EXISTS VERSIONS")
-        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE")
-        db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
-        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE_STATUS")
+//        db.update(sql"DROP TABLE IF EXISTS VERSIONS")
+//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE")
+//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
+//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE_STATUS")
 
         if(checkTableExist()){
           db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL")
@@ -98,22 +98,22 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
         }
       }
 
+      // Create replica
       val repos = Database.withTransaction { implicit conn =>
         NodeManager.allRepositories()
       }
 
       repos.filter { x => x.nodes.size < config.replica }.foreach { x =>
         x.primaryNode.foreach { primaryNode =>
-          createReplicas(primaryNode, x.name, x.nodes.size)
+          createReplicas(primaryNode, x.name, x.timestamp, x.nodes.size)
         }
       }
     }
   }
 
-  private def createReplicas(primaryNode: String, repositoryName: String, enabledNodes: Int): Unit = {
+  private def createReplicas(primaryNode: String, repositoryName: String, timestamp: Long, enabledNodes: Int): Unit = {
     val lackOfReplicas = config.replica - enabledNodes
 
-    // TODO Need another solution to lock repository operation
     RepositoryLock.execute(repositoryName){
       (1 to lackOfReplicas).foreach { _ =>
         // TODO check disk usage as well
@@ -121,9 +121,11 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
           NodeManager.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
             log.info(s"Create replica of ${repositoryName} at $nodeUrl")
             // Create replica repository
-            httpPutJson(s"$nodeUrl/api/repos/${repositoryName}", CloneRequest(primaryNode))
+            httpPutJson(s"$nodeUrl/api/repos/${repositoryName}", CloneRequest(primaryNode), builder => {
+              builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
+            })
             // update node status in the database
-            NodeManager.createRepository(nodeUrl, repositoryName)
+            NodeManager.insertNodeRepository(nodeUrl, repositoryName)
           }
         }
       }

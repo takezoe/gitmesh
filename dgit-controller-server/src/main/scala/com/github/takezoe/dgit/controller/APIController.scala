@@ -36,7 +36,7 @@ class APIController(config: Config) extends HttpClientSupport {
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}")
   def createRepository(repositoryName: String): ActionResult[Unit] = Database.withTransaction { implicit conn =>
-    if(NodeManager.existRepository(repositoryName)){
+    if(NodeManager.getRepositoryStatus(repositoryName).nonEmpty){
       BadRequest(ErrorModel(Seq("Repository already exists.")))
 
     } else {
@@ -46,9 +46,14 @@ class APIController(config: Config) extends HttpClientSupport {
         .take(config.replica)
 
       if(nodeUrls.nonEmpty){
+        // TODO commit here?
+        val timestamp = NodeManager.insertRepository(repositoryName)
+
         nodeUrls.foreach { case (nodeUrl, status) =>
-          httpPost(s"$nodeUrl/api/repos/${repositoryName}", Map.empty)
-          NodeManager.createRepository(nodeUrl, repositoryName)
+          httpPost(s"$nodeUrl/api/repos/${repositoryName}", Map.empty, builder => {
+            builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
+          })
+          NodeManager.insertNodeRepository(nodeUrl, repositoryName)
         }
         Ok((): Unit)
       } else {
