@@ -18,13 +18,10 @@ object NodeManager extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(getClass)
 
-  // TODO 他のメソッドで代替できる？
   def existNode(nodeUrl: String): Boolean = {
     Database.withSession { implicit conn =>
       defining(DB(conn)){ db =>
-        val count = db.selectFirst(
-          sql"SELECT COUNT(*) AS COUNT FROM NODE WHERE NODE_URL = $nodeUrl"
-        ){ rs => rs.getInt("COUNT") }
+        val count = db.selectFirst(sql"SELECT COUNT(*) AS COUNT FROM NODE WHERE NODE_URL = $nodeUrl")(_.getInt("COUNT"))
 
         count match {
           case Some(i) if i > 0 => true
@@ -133,18 +130,6 @@ object NodeManager extends HttpClientSupport {
 
           (nodeUrl, NodeStatus(timestamp, diskUsage, repos))
         }
-      }
-    }
-  }
-
-  def getNodeStatus(nodeUrl: String)(implicit conn: Connection): Option[NodeStatus] = {
-    defining(DB(conn)){ db =>
-      db.selectFirst(sql"SELECT NODE_URL, LAST_UPDATED_TIME, DISK_USAGE FROM NODE WHERE NODE_URL = $nodeUrl"){ rs =>
-        // TODO Avoid N + 1 queries...
-        val repos = db.select(sql"SELECT REPOSITORY_NAME, STATUS FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl"){ rs =>
-          NodeStatusRepository(rs.getString("REPOSITORY_NAME"), rs.getString("STATUS"))
-        }
-        NodeStatus(rs.getLong("LAST_UPDATED_TIME"), rs.getDouble("DISK_USAGE"), repos)
       }
     }
   }
