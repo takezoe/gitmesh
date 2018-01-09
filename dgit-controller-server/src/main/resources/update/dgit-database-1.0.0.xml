@@ -2,15 +2,15 @@
 <changeSet>
 
   <!--================================================================================================-->
-  <!-- REPOSITORY_NODE_STATUS -->
+  <!-- NODE -->
   <!--================================================================================================-->
-  <createTable tableName="REPOSITORY_NODE_STATUS">
+  <createTable tableName="NODE">
     <column name="NODE_URL" type="varchar(200)" nullable="false"/>
     <column name="LAST_UPDATE_TIME" type="bigint" nullable="false"/>
     <column name="DISK_USAGE" type="decimal(3, 2)" nullable="false"/>
   </createTable>
 
-  <addPrimaryKey constraintName="IDX_REPOSITORY_NODE_STATUS_PK" tableName="REPOSITORY_NODE_STATUS" columnNames="NODE_URL"/>
+  <addPrimaryKey constraintName="IDX_NODE_STATUS_PK" tableName="NODE" columnNames="NODE_URL"/>
 
   <!--================================================================================================-->
   <!-- REPOSITORY -->
@@ -18,22 +18,35 @@
   <createTable tableName="REPOSITORY">
     <column name="REPOSITORY_NAME" type="varchar(200)" nullable="false"/>
     <column name="PRIMARY_NODE" type="varchar(200)" nullable="true"/>
+    <column name="LAST_UPDATE_TIME" type="bigint" nullable="true"/>
   </createTable>
 
   <addPrimaryKey constraintName="IDX_REPOSITORY_PK" tableName="REPOSITORY" columnNames="REPOSITORY_NAME"/>
-  <addForeignKeyConstraint constraintName="IDX_REPOSITORY_FK0" baseTableName="REPOSITORY" baseColumnNames="PRIMARY_NODE" referencedTableName="REPOSITORY_NODE_STATUS" referencedColumnNames="NODE_URL"/>
+  <addForeignKeyConstraint constraintName="IDX_REPOSITORY_FK0" baseTableName="REPOSITORY" baseColumnNames="PRIMARY_NODE" referencedTableName="NODE" referencedColumnNames="NODE_URL"/>
 
   <!--================================================================================================-->
-  <!-- REPOSITORY_NODE -->
+  <!-- NODE_REPOSITORY -->
   <!--================================================================================================-->
-  <createTable tableName="REPOSITORY_NODE">
+  <createTable tableName="NODE_REPOSITORY">
     <column name="NODE_URL" type="varchar(200)" nullable="false"/>
     <column name="REPOSITORY_NAME" type="varchar(200)" nullable="false"/>
     <column name="STATUS" type="varchar(100)" nullable="false"/>
   </createTable>
 
-  <addPrimaryKey constraintName="IDX_REPOSITORY_NODE_PK" tableName="REPOSITORY_NODE" columnNames="NODE_URL, REPOSITORY_NAME"/>
-  <addForeignKeyConstraint constraintName="IDX_REPOSITORY_NODE_FK0" baseTableName="REPOSITORY_NODE" baseColumnNames="NODE_URL" referencedTableName="REPOSITORY_NODE_STATUS" referencedColumnNames="NODE_URL"/>
-  <addForeignKeyConstraint constraintName="IDX_REPOSITORY_NODE_FK1" baseTableName="REPOSITORY_NODE" baseColumnNames="REPOSITORY_NAME" referencedTableName="REPOSITORY" referencedColumnNames="REPOSITORY_NAME"/>
+  <addPrimaryKey constraintName="IDX_NODE_REPOSITORY_PK" tableName="NODE_REPOSITORY" columnNames="NODE_URL, REPOSITORY_NAME"/>
+  <addForeignKeyConstraint constraintName="IDX_NODE_REPOSITORY_FK0" baseTableName="NODE_REPOSITORY" baseColumnNames="NODE_URL" referencedTableName="NODE" referencedColumnNames="NODE_URL"/>
+  <addForeignKeyConstraint constraintName="IDX_NODE_REPOSITORY_FK1" baseTableName="NODE_REPOSITORY" baseColumnNames="REPOSITORY_NAME" referencedTableName="REPOSITORY" referencedColumnNames="REPOSITORY_NAME"/>
+
+  <!--================================================================================================-->
+  <!-- REPOSITORY_LOCK -->
+  <!--================================================================================================-->
+  <createTable tableName="REPOSITORY_LOCK">
+    <column name="REPOSITORY_NAME" type="varchar(200)" nullable="false"/>
+    <column name="COMMENT" type="varchar(200)" nullable="true"/>
+    <column name="LOCK_TIME" type="bigint" nullable="true"/>
+  </createTable>
+
+  <addPrimaryKey constraintName="IDX_REPOSITORY_LOCK_PK" tableName="REPOSITORY_LOCK" columnNames="REPOSITORY_NAME"/>
+  <addForeignKeyConstraint constraintName="IDX_REPOSITORY_LOCK_FK0" baseTableName="REPOSITORY_LOCK" baseColumnNames="REPOSITORY_NAME" referencedTableName="REPOSITORY" referencedColumnNames="REPOSITORY_NAME"/>
 
 </changeSet>

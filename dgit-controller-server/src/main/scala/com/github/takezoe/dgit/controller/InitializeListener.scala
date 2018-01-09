@@ -40,14 +40,15 @@ class InitializeListener extends ServletContextListener {
     Database.withTransaction { implicit conn =>
       // Drop all tables
       defining(DB(conn)){ db =>
-//        db.update(sql"DROP TABLE IF EXISTS VERSIONS")
-//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE")
-//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
-//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE_STATUS")
+        db.update(sql"DROP TABLE IF EXISTS VERSIONS")
+        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE")
+        db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
+        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE_STATUS")
+
         if(checkTableExist()){
           db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL")
-          db.update(sql"DELETE FROM REPOSITORY_NODE")
-          db.update(sql"DELETE FROM REPOSITORY_NODE_STATUS")
+          db.update(sql"DELETE FROM NODE_REPOSITORY")
+          db.update(sql"DELETE FROM NODE")
         }
       }
       // Re-create empty tables
@@ -102,45 +103,56 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
         NodeManager.allRepositories()
       }
 
-      repos
-        .filter { x => x.enablesNodes.size < config.replica }
-        .foreach { x =>
-          x.primaryNode match {
-            case None =>
-              x.disabledNodes.headOption.foreach { node =>
-                // Set the primary node
-                Database.withTransaction { implicit conn =>
-                  NodeManager.promotePrimaryNode(node.nodeUrl, x.name)
-                }
-                // retry to create replicas
-                createReplicas()
+      repos.filter { x => x.enablesNodes.size < config.replica }.foreach { x =>
+        x.primaryNode match {
+          case None =>
+            x.disabledNodes.headOption.foreach { node =>
+              // Set the primary node
+              Database.withTransaction { implicit conn =>
+                NodeManager.promotePrimaryNode(node.nodeUrl, x.name)
               }
-            case Some(primaryNode) =>
-              // Add replica if it's needed
-              val lackOfReplicas = config.replica - x.enablesNodes.size
-              // TODO Need another solution to lock repository operation
-              RepositoryLock.execute(x.name){
-                (1 to lackOfReplicas).foreach { _ =>
-                  // TODO check disk usage as well
-                  Database.withTransaction { implicit conn =>
-                    NodeManager.getUrlOfAvailableNode(x.name).map { nodeUrl =>
-                      log.info(s"Create replica of ${x.name} at $nodeUrl")
-                      // Create replica repository
-                      httpPutJson(s"$nodeUrl/api/repos/${x.name}", CloneRequest(primaryNode))
-                      // update node status in the database
-                      NodeManager.createRepository(nodeUrl, x.name)
-                    }
-                  }
-                }
-              }
-          }
+              // retry to create replicas
+              createReplicas(node.nodeUrl, x.name, 1)
+            }
+          case Some(primaryNode) =>
+            createReplicas(primaryNode, x.name, x.enablesNodes.size)
         }
+      }
     }
   }
 
-  private def createReplicas(): Unit = {
+  private def createReplicas(primaryNode: String, repositoryName: String, enabledNodes: Int): Unit = {
+    val lackOfReplicas = config.replica - enabledNodes
 
+    // TODO Need another solution to lock repository operation
+    RepositoryLock.execute(repositoryName){
+      (1 to lackOfReplicas).foreach { _ =>
+        // TODO check disk usage as well
+        Database.withTransaction { implicit conn =>
+          NodeManager.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
+            log.info(s"Create replica of ${repositoryName} at $nodeUrl")
+            // Create replica repository
+            httpPutJson(s"$nodeUrl/api/repos/${repositoryName}", CloneRequest(primaryNode))
+            // update node status in the database
+            NodeManager.createRepository(nodeUrl, repositoryName)
+          }
+        }
+      }
+
+//      // Clean disabled repositories
+//      val disabledNodes = Database.withTransaction { implicit conn =>
+//        NodeManager.getNodesOfRepository(repositoryName)
+//      }.filter(_.status == NodeManager.RepositoryStatusDisabled)
+//
+//      disabledNodes.foreach { node =>
+//        httpDelete(s"${node.nodeUrl}/api/repos/${repositoryName}")
+//        Database.withTransaction { implicit conn =>
+//          NodeManager.deleteRepository(node.nodeUrl, repositoryName)
+//        }
+//      }
+    }
   }
+
 }
 
 case class CloneRequest(nodeUrl: String)

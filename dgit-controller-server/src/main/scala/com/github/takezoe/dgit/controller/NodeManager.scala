@@ -33,7 +33,7 @@ object NodeManager extends HttpClientSupport {
   def existNode(nodeUrl: String)(implicit conn: Connection): Boolean = {
     defining(DB(conn)){ db =>
       val count = db.selectFirst(
-        sql"SELECT COUNT(*) AS COUNT FROM REPOSITORY_NODE_STATUS WHERE NODE_URL = $nodeUrl"
+        sql"SELECT COUNT(*) AS COUNT FROM NODE WHERE NODE_URL = $nodeUrl"
       ){ rs => rs.getInt("COUNT") }
 
       count match {
@@ -47,16 +47,16 @@ object NodeManager extends HttpClientSupport {
     log.info(s"Add new node: $nodeUrl")
     defining(DB(conn)){ db =>
       db.update(sql"""
-              INSERT INTO REPOSITORY_NODE_STATUS
+              INSERT INTO NODE
                 (NODE_URL, LAST_UPDATE_TIME, DISK_USAGE)
               VALUES
-                ($nodeUrl, ${System.currentTimeMillis()}, $diskUsage)
+                ($nodeUrl, ${System.currentTimeMillis}, $diskUsage)
             """)
 
       repos.foreach { repositoryName =>
         if(existRepository(repositoryName)){
           db.update(sql"""
-                INSERT INTO REPOSITORY_NODE
+                INSERT INTO NODE_REPOSITORY
                   (NODE_URL, REPOSITORY_NAME, STATUS)
                 VALUES
                   ($nodeUrl, $repositoryName, $RepositoryStatusDisabled)
@@ -70,8 +70,8 @@ object NodeManager extends HttpClientSupport {
     log.info(s"Update node status: $nodeUrl")
     defining(DB(conn)){ db =>
       db.update(sql"""
-         UPDATE REPOSITORY_NODE_STATUS SET
-           LAST_UPDATE_TIME = ${System.currentTimeMillis()},
+         UPDATE NODE SET
+           LAST_UPDATE_TIME = ${System.currentTimeMillis},
            DISK_USAGE       = $diskUsage
          WHERE NODE_URL = $nodeUrl
       """)
@@ -87,11 +87,9 @@ object NodeManager extends HttpClientSupport {
 
       repos.foreach { repositoryName =>
         val nextPrimaryNodeUrl = db.selectFirst[String](sql"""
-          SELECT N.NODE_URL AS NODE_URL
-          FROM REPOSITORY_NODE N
-          INNER JOIN REPOSITORY_NODE_STATUS S ON N.NODE_URL = S.NODE_URL
-          WHERE N.NODE_URL <> $nodeUrl AND N.REPOSITORY_NAME = $repositoryName AND N.STATUS = $RepositoryStatusEnabled
-          ORDER BY S.LAST_UPDATE_TIME DESC
+          SELECT NODE_URL
+          FROM NODE_REPOSITORY
+          WHERE NODE_URL <> $nodeUrl AND REPOSITORY_NAME = $repositoryName AND STATUS = $RepositoryStatusEnabled
         """)(_.getString("NODE_URL"))
 
         nextPrimaryNodeUrl match {
@@ -104,19 +102,19 @@ object NodeManager extends HttpClientSupport {
       }
 
       // Delete node records
-      db.update(sql"DELETE FROM REPOSITORY_NODE")
-      db.update(sql"DELETE FROM REPOSITORY_NODE_STATUS")
+      db.update(sql"DELETE FROM NODE_REPOSITORY")
+      db.update(sql"DELETE FROM NODE")
     }
   }
 
   def allNodes()(implicit conn: Connection): Seq[(String, NodeStatus)] = {
     defining(DB(conn)){ db =>
-      db.select(sql"SELECT NODE_URL, LAST_UPDATE_TIME, DISK_USAGE FROM REPOSITORY_NODE_STATUS"){ rs =>
+      db.select(sql"SELECT NODE_URL, LAST_UPDATE_TIME, DISK_USAGE FROM NODE"){ rs =>
         val nodeUrl   = rs.getString("NODE_URL")
         val timestamp = rs.getLong("LAST_UPDATE_TIME")
         val diskUsage = rs.getDouble("DISK_USAGE")
         val repos     = db.select(
-          sql"SELECT REPOSITORY_NAME, STATUS FROM REPOSITORY_NODE WHERE NODE_URL = $nodeUrl"
+          sql"SELECT REPOSITORY_NAME, STATUS FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl"
         ){ rs => NodeStatusRepository(rs.getString("REPOSITORY_NAME"), rs.getString("STATUS")) }
 
         (nodeUrl, NodeStatus(timestamp, diskUsage, repos))
@@ -126,9 +124,9 @@ object NodeManager extends HttpClientSupport {
 
   def getNodeStatus(nodeUrl: String)(implicit conn: Connection): Option[NodeStatus] = {
     defining(DB(conn)){ db =>
-      db.selectFirst(sql"SELECT NODE_URL, LAST_UPDATED_TIME, DISK_USAGE FROM REPOSITORY_NODE_STATUS WHERE NODE_URL = $nodeUrl"){ rs =>
+      db.selectFirst(sql"SELECT NODE_URL, LAST_UPDATED_TIME, DISK_USAGE FROM NODE WHERE NODE_URL = $nodeUrl"){ rs =>
         // TODO Avoid N + 1 queries...
-        val repos = db.select(sql"SELECT REPOSITORY_NAME, STATUS FROM REPOSITORY_NODE WHERE NODE_URL = $nodeUrl"){ rs =>
+        val repos = db.select(sql"SELECT REPOSITORY_NAME, STATUS FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl"){ rs =>
           NodeStatusRepository(rs.getString("REPOSITORY_NAME"), rs.getString("STATUS"))
         }
         NodeStatus(rs.getLong("LAST_UPDATED_TIME"), rs.getDouble("DISK_USAGE"), repos)
@@ -146,7 +144,7 @@ object NodeManager extends HttpClientSupport {
 
   def getNodeUrlsOfRepository(repositoryName: String)(implicit conn: Connection): Seq[String] = {
     defining(DB(conn)){ db =>
-      db.select(sql"SELECT NODE_URL FROM REPOSITORY_NODE WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
+      db.select(sql"SELECT NODE_URL FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
         rs.getString("NODE_URL")
       }
     }
@@ -154,7 +152,7 @@ object NodeManager extends HttpClientSupport {
 
   def deleteRepository(repositoryName: String)(implicit conn: Connection): Unit = {
     defining(DB(conn)){ db =>
-      db.update(sql"DELETE FROM REPOSITORY_NODE WHERE REPOSITORY_NAME = $repositoryName")
+      db.update(sql"DELETE FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName")
       db.update(sql"DELETE FROM REPOSITORY WHERE REPOSITORY_NAME = $repositoryName")
     }
   }
@@ -162,10 +160,10 @@ object NodeManager extends HttpClientSupport {
   def createRepository(nodeUrl: String, repositoryName: String)(implicit conn: Connection): Unit = {
     defining(DB(conn)){ db =>
       if(!existRepository(repositoryName)){
-        db.update(sql"INSERT INTO REPOSITORY (REPOSITORY_NAME, PRIMARY_NODE) VALUES ($repositoryName, $nodeUrl)")
+        db.update(sql"INSERT INTO REPOSITORY (REPOSITORY_NAME, PRIMARY_NODE, LAST_UPDATE_TIME) VALUES ($repositoryName, $nodeUrl, ${System.currentTimeMillis})")
       }
-      db.update(sql"DELETE FROM REPOSITORY_NODE WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
-      db.update(sql"INSERT INTO REPOSITORY_NODE (NODE_URL, REPOSITORY_NAME, STATUS) VALUES ($nodeUrl, $repositoryName, $RepositoryStatusEnabled)")
+      db.update(sql"DELETE FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
+      db.update(sql"INSERT INTO NODE_REPOSITORY (NODE_URL, REPOSITORY_NAME, STATUS) VALUES ($nodeUrl, $repositoryName, $RepositoryStatusEnabled)")
     }
   }
 
@@ -175,7 +173,7 @@ object NodeManager extends HttpClientSupport {
         (rs.getString("REPOSITORY_NAME"), rs.getString("PRIMARY_NODE"))
       }
       repos.map { case (repositoryName, primaryNode) =>
-        val nodes = db.select(sql"""SELECT NODE_URL, STATUS FROM REPOSITORY_NODE WHERE REPOSITORY_NAME = $repositoryName"""){ rs =>
+        val nodes = db.select(sql"""SELECT NODE_URL, STATUS FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"""){ rs =>
           RepositoryNode(rs.getString("NODE_URL"), rs.getString("STATUS"))
         }
         Repository(repositoryName, Option(primaryNode), nodes)
@@ -186,9 +184,9 @@ object NodeManager extends HttpClientSupport {
   def getUrlOfAvailableNode(repositoryName: String)(implicit conn: Connection): Option[String] = {
     defining(DB(conn)){ db =>
       db.selectFirst(sql"""
-        SELECT NODE_URL FROM REPOSITORY_NODE_STATUS
+        SELECT NODE_URL FROM NODE
         WHERE NODE_URL NOT IN (
-          SELECT NODE_URL FROM REPOSITORY_NODE WHERE REPOSITORY_NAME = $repositoryName AND STATUS = $RepositoryStatusEnabled
+          SELECT NODE_URL FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName AND STATUS = $RepositoryStatusEnabled
       )"""){ rs =>
         rs.getString("NODE_URL")
       }
@@ -198,7 +196,7 @@ object NodeManager extends HttpClientSupport {
   def promotePrimaryNode(nodeUrl: String, repositoryName: String)(implicit conn: Connection): Unit = {
     defining(DB(conn)){ db =>
       db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = $repositoryName")
-      db.update(sql"UPDATE REPOSITORY_NODE SET STATUS = $RepositoryStatusEnabled WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
+      db.update(sql"UPDATE NODE_REPOSITORY SET STATUS = $RepositoryStatusEnabled WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
     }
   }
 
