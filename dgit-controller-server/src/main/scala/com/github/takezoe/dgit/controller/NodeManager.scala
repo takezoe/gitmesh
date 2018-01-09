@@ -80,10 +80,6 @@ object NodeManager extends HttpClientSupport {
 
   def removeNode(nodeUrl: String)(implicit conn: Connection): Unit = {
     defining(DB(conn)){ db =>
-      // Delete node records
-      db.update(sql"DELETE FROM REPOSITORY_NODE")
-      db.update(sql"DELETE FROM REPOSITORY_NODE_STATUS")
-
       // Update primary repository
       val repos = db.select(sql"SELECT REPOSITORY_NAME FROM REPOSITORY WHERE PRIMARY_NODE = $nodeUrl "){ rs =>
         rs.getString("REPOSITORY_NAME")
@@ -94,7 +90,7 @@ object NodeManager extends HttpClientSupport {
           SELECT N.NODE_URL AS NODE_URL
           FROM REPOSITORY_NODE N
           INNER JOIN REPOSITORY_NODE_STATUS S ON N.NODE_URL = S.NODE_URL
-          WHERE N.REPOSITORY_NAME = $repositoryName AND N.STATUS = $RepositoryStatusEnabled
+          WHERE N.NODE_URL <> $nodeUrl AND N.REPOSITORY_NAME = $repositoryName AND N.STATUS = $RepositoryStatusEnabled
           ORDER BY S.LAST_UPDATE_TIME DESC
         """)(_.getString("NODE_URL"))
 
@@ -106,6 +102,10 @@ object NodeManager extends HttpClientSupport {
             log.error(s"All nodes for $repositoryName has been retired.")
         }
       }
+
+      // Delete node records
+      db.update(sql"DELETE FROM REPOSITORY_NODE")
+      db.update(sql"DELETE FROM REPOSITORY_NODE_STATUS")
     }
   }
 
@@ -197,7 +197,7 @@ object NodeManager extends HttpClientSupport {
 
   def promotePrimaryNode(nodeUrl: String, repositoryName: String)(implicit conn: Connection): Unit = {
     defining(DB(conn)){ db =>
-      db.update(sql"UPDATE REPOSITORY SET PRIMARY_NOE = $nodeUrl WHERE REPOSITORY_NAME = $repositoryName")
+      db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = $repositoryName")
       db.update(sql"UPDATE REPOSITORY_NODE SET STATUS = $RepositoryStatusEnabled WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
     }
   }

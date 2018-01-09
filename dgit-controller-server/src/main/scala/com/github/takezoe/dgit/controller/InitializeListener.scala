@@ -39,10 +39,10 @@ class InitializeListener extends ServletContextListener {
     Database.withTransaction { conn =>
       // Drop all tables
       defining(DB(conn)){ db =>
-        db.update(sql"DROP TABLE IF EXISTS VERSIONS")
-        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE")
+//        db.update(sql"DROP TABLE IF EXISTS VERSIONS")
+//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE")
         db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
-        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE_STATUS")
+//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE_STATUS")
       }
       // Re-create empty tables
       new Solidbase().migrate(conn, Thread.currentThread.getContextClassLoader, new PostgresDatabase(), DGitMigrationModule)
