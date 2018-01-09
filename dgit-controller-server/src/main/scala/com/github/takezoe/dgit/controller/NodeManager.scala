@@ -2,8 +2,8 @@ package com.github.takezoe.dgit.controller
 
 import java.sql.Connection
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.github.takezoe.resty.HttpClientSupport
-
 import org.slf4j.LoggerFactory
 import com.github.takezoe.scala.jdbc._
 import syntax._
@@ -201,13 +201,17 @@ object NodeManager extends HttpClientSupport {
 }
 
 case class Repository(name: String, primaryNode: Option[String], timestamp: Long, nodes: Seq[RepositoryNode]){
+  @JsonIgnore
   lazy val readyNodes  = nodes.filter(_.status == Status.Ready)
+  @JsonIgnore
   lazy val preparingNodes = nodes.filter(_.status == Status.Preparing)
 }
 case class RepositoryNode(nodeUrl: String, status: String)
 
 case class NodeStatus(timestamp: Long, diskUsage: Double, repos: Seq[NodeStatusRepository]){
+  @JsonIgnore
   lazy val readyRepos  = repos.filter(_.status == Status.Ready)
+  @JsonIgnore
   lazy val preparingRepos = repos.filter(_.status == Status.Preparing)
 }
 case class NodeStatusRepository(repositoryName: String, status: String)

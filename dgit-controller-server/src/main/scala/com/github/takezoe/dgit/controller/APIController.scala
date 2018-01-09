@@ -14,16 +14,16 @@ class APIController(config: Config) extends HttpClientSupport {
   }
 
   @Action(method = "GET", path = "/api/nodes")
-  def listNodes(): Seq[Node] = Database.withTransaction { implicit conn =>
+  def listNodes(): Seq[Node] = Database.withSession { implicit conn =>
     NodeManager.allNodes().map { case (node, status) =>
       Node(node, status.diskUsage, status.readyRepos.map(x => NodeRepository(x.repositoryName, x.status)))
     }
   }
 
-//  @Action(method = "GET", path = "/api/repos")
-//  def listRepositories(): Seq[Repository] = {
-//    NodeManager.allRepositories()
-//  }
+  @Action(method = "GET", path = "/api/repos")
+  def listRepositories(): Seq[Repository] = Database.withSession { implicit conn =>
+    NodeManager.allRepositories()
+  }
 
   @Action(method = "DELETE", path = "/api/repos/{repositoryName}")
   def deleteRepository(repositoryName: String): Unit = Database.withTransaction { implicit conn =>
