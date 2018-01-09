@@ -5,10 +5,11 @@ import com.github.takezoe.resty._
 class APIController(config: Config) extends HttpClientSupport {
 
   @Action(method = "POST", path = "/api/nodes/join")
-  def joinRepositoryNode(node: Node): Unit = Database.withTransaction { implicit conn =>
+  def joinRepositoryNode(node: JoinNodeRequest): Unit = Database.withTransaction { implicit conn =>
     if(NodeManager.existNode(node.url)){
       NodeManager.updateNodeStatus(node.url, node.diskUsage)
     } else {
+      // TODO Fix here!!
       NodeManager.addNewNode(node.url, node.diskUsage, node.repos)
     }
   }
@@ -16,7 +17,7 @@ class APIController(config: Config) extends HttpClientSupport {
   @Action(method = "GET", path = "/api/nodes")
   def listNodes(): Seq[Node] = Database.withTransaction { implicit conn =>
     NodeManager.allNodes().map { case (node, status) =>
-      Node(node, status.diskUsage, status.enabledRepos.map(_.repositoryName))
+      Node(node, status.diskUsage, status.readyRepos.map(x => NodeRepository(x.repositoryName, x.status)))
     }
   }
 
@@ -59,5 +60,9 @@ class APIController(config: Config) extends HttpClientSupport {
 
 }
 
-case class Node(url: String, diskUsage: Double, repos: Seq[String])
+// TODO
+case class JoinNodeRequest(url: String, diskUsage: Double, repos: Seq[String])
+
+case class Node(url: String, diskUsage: Double, repos: Seq[NodeRepository])
+case class NodeRepository(name: String, status: String)
 

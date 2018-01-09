@@ -10,10 +10,9 @@ import akka.actor._
 import akka.event.Logging
 import io.github.gitbucket.solidbase.Solidbase
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-import io.github.gitbucket.solidbase.migration.{LiquibaseMigration, SqlMigration}
+import io.github.gitbucket.solidbase.migration.LiquibaseMigration
 import io.github.gitbucket.solidbase.model.{Module, Version}
 import liquibase.database.core.PostgresDatabase
 import com.github.takezoe.scala.jdbc._
@@ -103,19 +102,9 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
         NodeManager.allRepositories()
       }
 
-      repos.filter { x => x.enablesNodes.size < config.replica }.foreach { x =>
-        x.primaryNode match {
-          case None =>
-            x.disabledNodes.headOption.foreach { node =>
-              // Set the primary node
-              Database.withTransaction { implicit conn =>
-                NodeManager.promotePrimaryNode(node.nodeUrl, x.name)
-              }
-              // retry to create replicas
-              createReplicas(node.nodeUrl, x.name, 1)
-            }
-          case Some(primaryNode) =>
-            createReplicas(primaryNode, x.name, x.enablesNodes.size)
+      repos.filter { x => x.nodes.size < config.replica }.foreach { x =>
+        x.primaryNode.foreach { primaryNode =>
+          createReplicas(primaryNode, x.name, x.nodes.size)
         }
       }
     }
@@ -138,18 +127,6 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
           }
         }
       }
-
-//      // Clean disabled repositories
-//      val disabledNodes = Database.withTransaction { implicit conn =>
-//        NodeManager.getNodesOfRepository(repositoryName)
-//      }.filter(_.status == NodeManager.RepositoryStatusDisabled)
-//
-//      disabledNodes.foreach { node =>
-//        httpDelete(s"${node.nodeUrl}/api/repos/${repositoryName}")
-//        Database.withTransaction { implicit conn =>
-//          NodeManager.deleteRepository(node.nodeUrl, repositoryName)
-//        }
-//      }
     }
   }
 

@@ -1,7 +1,6 @@
 package com.github.takezoe.dgit.controller
 
 import java.sql.Connection
-import java.util.concurrent.ConcurrentHashMap
 
 import com.github.takezoe.resty.HttpClientSupport
 
@@ -9,13 +8,15 @@ import org.slf4j.LoggerFactory
 import com.github.takezoe.scala.jdbc._
 import syntax._
 
+object Status {
+  val Ready = "ready"
+  val Preparing = "preparing"
+}
+
 // TODO Should be a class?
 object NodeManager extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(getClass)
-
-  val RepositoryStatusEnabled = "enabled"
-  val RepositoryStatusDisabled = "disabled"
 
   def existRepository(repositoryName: String)(implicit conn: Connection): Boolean = {
     defining(DB(conn)){ db =>
@@ -53,13 +54,14 @@ object NodeManager extends HttpClientSupport {
                 ($nodeUrl, ${System.currentTimeMillis}, $diskUsage)
             """)
 
+      // TODO Fix this!!
       repos.foreach { repositoryName =>
         if(existRepository(repositoryName)){
           db.update(sql"""
                 INSERT INTO NODE_REPOSITORY
                   (NODE_URL, REPOSITORY_NAME, STATUS)
                 VALUES
-                  ($nodeUrl, $repositoryName, $RepositoryStatusDisabled)
+                  ($nodeUrl, $repositoryName, ${Status.Preparing})
               """)
         }
       }
@@ -89,7 +91,7 @@ object NodeManager extends HttpClientSupport {
         val nextPrimaryNodeUrl = db.selectFirst[String](sql"""
           SELECT NODE_URL
           FROM NODE_REPOSITORY
-          WHERE NODE_URL <> $nodeUrl AND REPOSITORY_NAME = $repositoryName AND STATUS = $RepositoryStatusEnabled
+          WHERE NODE_URL <> $nodeUrl AND REPOSITORY_NAME = $repositoryName AND STATUS = ${Status.Ready}
         """)(_.getString("NODE_URL"))
 
         nextPrimaryNodeUrl match {
@@ -163,7 +165,7 @@ object NodeManager extends HttpClientSupport {
         db.update(sql"INSERT INTO REPOSITORY (REPOSITORY_NAME, PRIMARY_NODE, LAST_UPDATE_TIME) VALUES ($repositoryName, $nodeUrl, ${System.currentTimeMillis})")
       }
       db.update(sql"DELETE FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
-      db.update(sql"INSERT INTO NODE_REPOSITORY (NODE_URL, REPOSITORY_NAME, STATUS) VALUES ($nodeUrl, $repositoryName, $RepositoryStatusEnabled)")
+      db.update(sql"INSERT INTO NODE_REPOSITORY (NODE_URL, REPOSITORY_NAME, STATUS) VALUES ($nodeUrl, $repositoryName, ${Status.Ready})")
     }
   }
 
@@ -186,7 +188,7 @@ object NodeManager extends HttpClientSupport {
       db.selectFirst(sql"""
         SELECT NODE_URL FROM NODE
         WHERE NODE_URL NOT IN (
-          SELECT NODE_URL FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName AND STATUS = $RepositoryStatusEnabled
+          SELECT NODE_URL FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName AND STATUS = ${Status.Ready}
       )"""){ rs =>
         rs.getString("NODE_URL")
       }
@@ -196,20 +198,20 @@ object NodeManager extends HttpClientSupport {
   def promotePrimaryNode(nodeUrl: String, repositoryName: String)(implicit conn: Connection): Unit = {
     defining(DB(conn)){ db =>
       db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = $repositoryName")
-      db.update(sql"UPDATE NODE_REPOSITORY SET STATUS = $RepositoryStatusEnabled WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
+      db.update(sql"UPDATE NODE_REPOSITORY SET STATUS = ${Status.Ready} WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
     }
   }
 
 }
 
 case class Repository(name: String, primaryNode: Option[String], nodes: Seq[RepositoryNode]){
-  lazy val enablesNodes  = nodes.filter(_.status == NodeManager.RepositoryStatusEnabled)
-  lazy val disabledNodes = nodes.filter(_.status == NodeManager.RepositoryStatusDisabled)
+  lazy val readyNodes  = nodes.filter(_.status == Status.Ready)
+  lazy val preparingNodes = nodes.filter(_.status == Status.Preparing)
 }
 case class RepositoryNode(nodeUrl: String, status: String)
 
 case class NodeStatus(timestamp: Long, diskUsage: Double, repos: Seq[NodeStatusRepository]){
-  lazy val enabledRepos  = repos.filter(_.status == NodeManager.RepositoryStatusEnabled)
-  lazy val disabledRepos = repos.filter(_.status == NodeManager.RepositoryStatusDisabled)
+  lazy val readyRepos  = repos.filter(_.status == Status.Ready)
+  lazy val preparingRepos = repos.filter(_.status == Status.Preparing)
 }
 case class NodeStatusRepository(repositoryName: String, status: String)
