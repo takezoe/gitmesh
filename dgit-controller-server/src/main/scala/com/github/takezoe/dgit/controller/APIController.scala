@@ -19,7 +19,7 @@ class APIController(config: Config) extends HttpClientSupport {
   @Action(method = "GET", path = "/api/nodes")
   def listNodes(): Seq[Node] = {
     NodeManager.allNodes().map { case (node, status) =>
-      Node(node, status.diskUsage, status.readyRepos.map(x => NodeRepository(x.repositoryName, x.status)))
+      Node(node, status.diskUsage, status.repos)
     }
   }
 
@@ -31,7 +31,7 @@ class APIController(config: Config) extends HttpClientSupport {
   @Action(method = "DELETE", path = "/api/repos/{repositoryName}")
   def deleteRepository(repositoryName: String): Unit = {
     NodeManager
-      .getRepositoryStatus(repositoryName).map(_.nodes.map(_.nodeUrl)).getOrElse(Nil)
+      .getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
       .foreach { nodeUrl =>
         try {
           // Delete a repository from the node
@@ -93,6 +93,6 @@ class APIController(config: Config) extends HttpClientSupport {
 case class JoinNodeRequest(url: String, diskUsage: Double, repos: Seq[JoinNodeRepository])
 case class JoinNodeRepository(name: String, timestamp: Long)
 
-case class Node(url: String, diskUsage: Double, repos: Seq[NodeRepository])
+case class Node(url: String, diskUsage: Double, repos: Seq[String])
 case class NodeRepository(name: String, status: String)
 

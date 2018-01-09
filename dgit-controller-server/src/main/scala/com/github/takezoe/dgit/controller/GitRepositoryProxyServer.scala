@@ -25,7 +25,7 @@ class GitRepositoryProxyServer extends HttpServlet {
       val timestamp = System.currentTimeMillis
       NodeManager.updateRepositoryTimestamp(repositoryName, timestamp)
       // Get relay destinations
-      val nodeUrls = NodeManager.getRepositoryStatus(repositoryName).map(_.nodes.map(_.nodeUrl)).getOrElse(Nil)
+      val nodeUrls = NodeManager.getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
 
       if (nodeUrls.nonEmpty) {
         val tmpFile = File.createTempFile("dgit", "tmpfile")

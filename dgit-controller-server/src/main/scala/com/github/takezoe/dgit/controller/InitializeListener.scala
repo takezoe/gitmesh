@@ -119,7 +119,7 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
           httpPutJson(s"$nodeUrl/api/repos/${repositoryName}", CloneRequest(primaryNode), builder => {
             builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
           })
-          // update node status in the database
+          // Insert record
           NodeManager.insertNodeRepository(nodeUrl, repositoryName)
         }
       }

@@ -30,7 +30,6 @@
   <createTable tableName="NODE_REPOSITORY">
     <column name="NODE_URL" type="varchar(200)" nullable="false"/>
     <column name="REPOSITORY_NAME" type="varchar(200)" nullable="false"/>
-    <column name="STATUS" type="varchar(100)" nullable="false"/>
   </createTable>
 
   <addPrimaryKey constraintName="IDX_NODE_REPOSITORY_PK" tableName="NODE_REPOSITORY" columnNames="NODE_URL, REPOSITORY_NAME"/>
