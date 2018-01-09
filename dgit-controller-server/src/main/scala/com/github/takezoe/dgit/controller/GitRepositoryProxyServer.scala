@@ -42,8 +42,8 @@ class GitRepositoryProxyServer extends HttpServlet {
             req.getHeaderNames.asScala.foreach { name =>
               builder.addHeader(name, req.getHeader(name))
             }
-            builder.post(RequestBody.create(MediaType.parse(req.getContentType), tmpFile))
             builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
+            builder.post(RequestBody.create(MediaType.parse(req.getContentType), tmpFile))
 
             val request = builder.build()
 

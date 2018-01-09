@@ -21,16 +21,19 @@ class GitRepositoryServlet extends GitServlet {
     super.init(config)
   }
 
+  private val RepositoryNamePattern = ".+/(.+?)\\.git.*".r
+
   override def service(req: HttpServletRequest, res: HttpServletResponse): Unit = {
-    //println(req.getMethod + " " + req.getRequestURI + (if(req.getQueryString == null) "" else "?" + req.getQueryString))
-
-    println(req.getRequestURL)
-    println(req.getRequestURI)
-
     val timestamp = req.getHeader("DGIT-UPDATE-ID")
 
-    val file = new File(config.directory, s"test.id")
-    FileUtils.write(file, timestamp.toString, "UTF-8")
+    if(timestamp != null){
+      req.getRequestURI match {
+        case RepositoryNamePattern(repositoryName) =>
+          val file = new File(config.directory, s"$repositoryName.id")
+          FileUtils.write(file, timestamp.toString, "UTF-8")
+        case _ =>
+      }
+    }
 
     super.service(req, res)
   }
