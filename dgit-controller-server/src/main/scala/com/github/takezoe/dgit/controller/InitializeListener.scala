@@ -39,10 +39,10 @@ class InitializeListener extends ServletContextListener {
     Database.withTransaction { conn =>
       // Drop all tables
       defining(DB(conn)){ db =>
-        db.update(sql"DROP TABLE VERSIONS")
-        db.update(sql"DROP TABLE REPOSITORY_NODE")
-        db.update(sql"DROP TABLE REPOSITORY")
-        db.update(sql"DROP TABLE REPOSITORY_NODE_STATUS")
+        db.update(sql"DROP TABLE IF EXISTS VERSIONS")
+        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE")
+        db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
+        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE_STATUS")
       }
       // Re-create empty tables
       new Solidbase().migrate(conn, Thread.currentThread.getContextClassLoader, new PostgresDatabase(), DGitMigrationModule)
@@ -106,6 +106,7 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
                   // TODO check disk usage as well
                   Database.withTransaction { implicit conn =>
                     NodeManager.getUrlOfAvailableNode(x.name).map { nodeUrl =>
+                      log.info(s"Create replica of ${x.name} at $nodeUrl")
                       // Create replica repository
                       httpPutJson(s"$nodeUrl/api/repos/${x.name}", CloneRequest(primaryNode))
                       // update node status in the database

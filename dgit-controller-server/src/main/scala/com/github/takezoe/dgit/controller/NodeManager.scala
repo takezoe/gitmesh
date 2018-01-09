@@ -44,6 +44,7 @@ object NodeManager extends HttpClientSupport {
   }
 
   def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[String])(implicit conn: Connection): Unit = {
+    log.info(s"Add new node: $nodeUrl")
     defining(DB(conn)){ db =>
       db.update(sql"""
               INSERT INTO REPOSITORY_NODE_STATUS
@@ -66,6 +67,7 @@ object NodeManager extends HttpClientSupport {
   }
 
   def updateNodeStatus(nodeUrl: String, diskUsage: Double)(implicit conn: Connection): Unit = {
+    log.info(s"Update node status: $nodeUrl")
     defining(DB(conn)){ db =>
       db.update(sql"""
          UPDATE REPOSITORY_NODE_STATUS SET
@@ -78,6 +80,10 @@ object NodeManager extends HttpClientSupport {
 
   def removeNode(nodeUrl: String)(implicit conn: Connection): Unit = {
     defining(DB(conn)){ db =>
+      // Delete node records
+      db.update(sql"DELETE FROM REPOSITORY_NODE")
+      db.update(sql"DELETE FROM REPOSITORY_NODE_STATUS")
+
       // Update primary repository
       val repos = db.select(sql"SELECT REPOSITORY_NAME FROM REPOSITORY WHERE PRIMARY_NODE = $nodeUrl "){ rs =>
         rs.getString("REPOSITORY_NAME")
@@ -100,10 +106,6 @@ object NodeManager extends HttpClientSupport {
             log.error(s"All nodes for $repositoryName has been retired.")
         }
       }
-
-      // Delete node records
-      db.update(sql"DELETE FROM REPOSITORY_NODE")
-      db.update(sql"DELETE FROM REPOSITORY_NODE_STATUS")
     }
   }
 
@@ -162,7 +164,7 @@ object NodeManager extends HttpClientSupport {
       if(!existRepository(repositoryName)){
         db.update(sql"INSERT INTO REPOSITORY (REPOSITORY_NAME, PRIMARY_NODE) VALUES ($repositoryName, $nodeUrl)")
       }
-      db.update(sql"DELETE REPOSITORY_NODE WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
+      db.update(sql"DELETE FROM REPOSITORY_NODE WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
       db.update(sql"INSERT INTO REPOSITORY_NODE (NODE_URL, REPOSITORY_NAME, STATUS) VALUES ($nodeUrl, $repositoryName, $RepositoryStatusEnabled)")
     }
   }
@@ -186,7 +188,7 @@ object NodeManager extends HttpClientSupport {
       db.selectFirst(sql"""
         SELECT NODE_URL FROM REPOSITORY_NODE_STATUS
         WHERE NODE_URL NOT IN (
-          SELECT NODE_URL FROM REPOSITORY_NODE WHERE REPOSITORY_NAME = $repositoryName AND STATUS <> $RepositoryStatusEnabled
+          SELECT NODE_URL FROM REPOSITORY_NODE WHERE REPOSITORY_NAME = $repositoryName AND STATUS = $RepositoryStatusEnabled
       )"""){ rs =>
         rs.getString("NODE_URL")
       }

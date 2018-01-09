@@ -31,13 +31,15 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}")
   def createRepository(repositoryName: String): ActionResult[Unit] = {
-    if(getRepositories().contains(repositoryName)){
-      BadRequest(ErrorModel(Seq("Repository already exists.")))
-    } else {
-      log.info(s"Create repository: $repositoryName")
-      gitInit(repositoryName)
-      Ok((): Unit)
+    // Delete the repository directory if it exists
+    defining(new File(config.directory, repositoryName)){ dir =>
+      if(dir.exists){
+        FileUtils.forceDelete(dir)
+      }
     }
+    log.info(s"Create repository: $repositoryName")
+    gitInit(repositoryName)
+    Ok((): Unit)
   }
 
   @Action(method = "GET", path = "/api/repos")
@@ -73,8 +75,8 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
     val cloneUrl = s"${config.url}/git/$repositoryName.git"
     log.info(s"Synchronize repository: $repositoryName with ${cloneUrl}")
 
+    // Delete the repository directory if it exists
     defining(new File(config.directory, repositoryName)){ dir =>
-      // Delete the repository directory if it exists
       if(dir.exists){
         FileUtils.forceDelete(dir)
       }
