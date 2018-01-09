@@ -21,11 +21,11 @@ class GitRepositoryProxyServer extends HttpServlet {
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
     RepositoryLock.execute(repositoryName) {
+      // Update timestamp of the REPOSITORY table
       val timestamp = System.currentTimeMillis
-      val nodeUrls = Database.withTransaction { implicit conn =>
-        NodeManager.updateRepositoryTimestamp(repositoryName, timestamp)
-        NodeManager.getRepositoryStatus(repositoryName).map(_.nodes.map(_.nodeUrl)).getOrElse(Nil)
-      }
+      NodeManager.updateRepositoryTimestamp(repositoryName, timestamp)
+      // Get relay destinations
+      val nodeUrls = NodeManager.getRepositoryStatus(repositoryName).map(_.nodes.map(_.nodeUrl)).getOrElse(Nil)
 
       if (nodeUrls.nonEmpty) {
         val tmpFile = File.createTempFile("dgit", "tmpfile")
@@ -64,9 +64,7 @@ class GitRepositoryProxyServer extends HttpServlet {
               // If request failed remove the node
               case e: Exception =>
                 log.error(s"Remove node $nodeUrl by error: ${e.toString}")
-                Database.withTransaction { implicit conn =>
-                  NodeManager.removeNode(nodeUrl)
-                }
+                NodeManager.removeNode(nodeUrl)
             }
           }
         } finally {
@@ -83,9 +81,7 @@ class GitRepositoryProxyServer extends HttpServlet {
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
-    val primaryNode = Database.withSession { implicit conn =>
-      NodeManager.getRepositoryStatus(repositoryName).map(_.primaryNode).flatten
-    }
+    val primaryNode = NodeManager.getRepositoryStatus(repositoryName).map(_.primaryNode).flatten
 
     primaryNode.map { nodeUrl =>
       val builder = new Request.Builder().url(nodeUrl + path + (if(queryString == null) "" else "?" + queryString))
@@ -112,9 +108,7 @@ class GitRepositoryProxyServer extends HttpServlet {
         // If request failed, remove the node and try other nodes
         case e: Exception =>
           log.error(s"Remove node $nodeUrl by error: ${e.toString}")
-          Database.withTransaction { implicit conn =>
-            NodeManager.removeNode(nodeUrl)
-          }
+          NodeManager.removeNode(nodeUrl)
           doGet(req, resp)
       }
     }.getOrElse {

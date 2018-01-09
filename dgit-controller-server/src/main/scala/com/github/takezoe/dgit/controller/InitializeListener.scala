@@ -36,7 +36,7 @@ class InitializeListener extends ServletContextListener {
     // Initialize the node status db
     Database.initializeDataSource(config.database)
 
-    Database.withTransaction { implicit conn =>
+    Database.withConnection { implicit conn =>
       // Drop all tables
       defining(DB(conn)){ db =>
 //        db.update(sql"DROP TABLE IF EXISTS VERSIONS")
@@ -97,9 +97,7 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
       }
 
       // Create replica
-      val repos = Database.withSession { implicit conn =>
-        NodeManager.allRepositories()
-      }
+      val repos = NodeManager.allRepositories()
 
       repos.filter { x => x.nodes.size < config.replica }.foreach { x =>
         x.primaryNode.foreach { primaryNode =>
@@ -115,16 +113,14 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
     RepositoryLock.execute(repositoryName){
       (1 to lackOfReplicas).foreach { _ =>
         // TODO check disk usage as well
-        Database.withTransaction { implicit conn =>
-          NodeManager.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
-            log.info(s"Create replica of ${repositoryName} at $nodeUrl")
-            // Create replica repository
-            httpPutJson(s"$nodeUrl/api/repos/${repositoryName}", CloneRequest(primaryNode), builder => {
-              builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
-            })
-            // update node status in the database
-            NodeManager.insertNodeRepository(nodeUrl, repositoryName)
-          }
+        NodeManager.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
+          log.info(s"Create replica of ${repositoryName} at $nodeUrl")
+          // Create replica repository
+          httpPutJson(s"$nodeUrl/api/repos/${repositoryName}", CloneRequest(primaryNode), builder => {
+            builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
+          })
+          // update node status in the database
+          NodeManager.insertNodeRepository(nodeUrl, repositoryName)
         }
       }
     }
