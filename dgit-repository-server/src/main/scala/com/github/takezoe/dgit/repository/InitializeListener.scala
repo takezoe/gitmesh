@@ -6,9 +6,9 @@ import javax.servlet.annotation.WebListener
 
 import com.github.takezoe.resty._
 import akka.actor._
-import akka.event.Logging
 import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
 import org.apache.commons.io.FileUtils
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -26,39 +26,50 @@ class InitializeListener extends ServletContextListener {
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
     val config = Config.load()
+
+    new File(config.directory).unsafeTap { dir =>
+      if(!dir.exists){
+        dir.mkdirs()
+      }
+    }
+
     Resty.register(new APIController()(config))
 
+    val notifier = new Notifier(config)
+    notifier.send()
+
     val scheduler = QuartzSchedulerExtension(system)
-    scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[HeartBeatActor], config)), "tick")
+    scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[NotifyActor], notifier)), "tick")
   }
 
 }
 
-class HeartBeatActor(config: Config) extends Actor with HttpClientSupport {
-
-  private val log = Logging(context.system, this)
+class NotifyActor(notifier: Notifier) extends Actor with HttpClientSupport {
 
   override def receive: Receive = {
-    case _ => {
-      val rootDir = new File(config.directory).unsafeTap { dir =>
-        if(!dir.exists){
-          dir.mkdirs()
-        }
-      }
+    case _ => notifier.send()
+  }
 
-      val diskUsage = 1.0d - (rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble)
-      val repos = rootDir.listFiles(_.isDirectory).toSeq.map { dir =>
-        val timestamp = FileUtils.readFileToString(new File(rootDir, s"${dir.getName}.id"), "UTF-8").toLong
-        JoinNodeRepository(dir.getName, timestamp)
-      }
+}
 
-      httpPostJson[String](
-        s"${config.controllerUrl}/api/nodes/join",
-        JoinNodeRequest(config.url, diskUsage, repos)
-      ) match {
-        case Right(_) => // success
-        case Left(e) => log.error(e.errors.mkString("\n"))
-      }
+class Notifier(config: Config) extends HttpClientSupport {
+
+  private val log = LoggerFactory.getLogger(classOf[Notifier])
+
+  def send(): Unit = {
+    val rootDir = new File(config.directory)
+    val diskUsage = 1.0d - (rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble)
+    val repos = rootDir.listFiles(_.isDirectory).toSeq.map { dir =>
+      val timestamp = FileUtils.readFileToString(new File(rootDir, s"${dir.getName}.id"), "UTF-8").toLong
+      JoinNodeRepository(dir.getName, timestamp)
+    }
+
+    httpPostJson[String](
+      s"${config.controllerUrl}/api/nodes/notify",
+      JoinNodeRequest(config.url, diskUsage, repos)
+    ) match {
+      case Right(_) => // success
+      case Left(e) => log.error(e.errors.mkString("\n"))
     }
   }
 

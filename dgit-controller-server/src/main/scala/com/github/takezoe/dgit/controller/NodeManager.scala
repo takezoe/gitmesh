@@ -18,14 +18,6 @@ object NodeManager extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(getClass)
 
-//  def existRepository(repositoryName: String)(implicit conn: Connection): Option[Long] = {
-//    defining(DB(conn)){ db =>
-//      db.selectFirst(
-//        sql"SELECT LAST_UPDATE_TIME AS COUNT FROM REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"
-//      ){ rs => rs.getInt("LAST_UPDATE_TIME") }
-//    }
-//  }
-
   def existNode(nodeUrl: String)(implicit conn: Connection): Boolean = {
     defining(DB(conn)){ db =>
       val count = db.selectFirst(
@@ -126,14 +118,6 @@ object NodeManager extends HttpClientSupport {
       }
     }
   }
-
-//  def getUrlOfPrimaryNode(repositoryName: String)(implicit conn: Connection): Option[String] = {
-//    defining(DB(conn)){ db =>
-//      db.selectFirst(sql"SELECT PRIMARY_NODE FROM REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
-//        rs.getString("PRIMARY_NODE")
-//      }
-//    }
-//  }
 
   def updateRepositoryTimestamp(repositoryName: String, timestamp: Long)(implicit conn: Connection): Unit = {
     defining(DB(conn)) { db =>

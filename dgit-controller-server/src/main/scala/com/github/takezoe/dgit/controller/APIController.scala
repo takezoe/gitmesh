@@ -4,8 +4,8 @@ import com.github.takezoe.resty._
 
 class APIController(config: Config) extends HttpClientSupport {
 
-  @Action(method = "POST", path = "/api/nodes/join")
-  def joinRepositoryNode(node: JoinNodeRequest): Unit = Database.withTransaction { implicit conn =>
+  @Action(method = "POST", path = "/api/nodes/notify")
+  def notifyFromNode(node: JoinNodeRequest): Unit = Database.withTransaction { implicit conn =>
     if(NodeManager.existNode(node.url)){
       NodeManager.updateNodeStatus(node.url, node.diskUsage)
     } else {
