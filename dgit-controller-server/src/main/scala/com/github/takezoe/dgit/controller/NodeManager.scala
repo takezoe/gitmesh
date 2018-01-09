@@ -27,7 +27,7 @@ object NodeManager extends HttpClientSupport {
     }
 
     repos.foreach { repo =>
-      RepositoryLock.execute(repo.name){
+      RepositoryLock.execute(repo.name, "add node"){
         db.transaction {
           val repository = getRepositoryStatus(repo.name)
 
@@ -64,7 +64,7 @@ object NodeManager extends HttpClientSupport {
     }
 
     repos.foreach { repositoryName =>
-      RepositoryLock.execute(repositoryName){
+      RepositoryLock.execute(repositoryName, "remove node"){
         db.transaction {
           val nextPrimaryNodeUrl = db.selectFirst[String](sql"""
             SELECT NODE_URL FROM NODE_REPOSITORY

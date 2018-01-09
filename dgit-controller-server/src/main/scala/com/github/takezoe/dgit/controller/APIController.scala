@@ -61,7 +61,7 @@ class APIController(config: Config) extends HttpClientSupport {
         .take(config.replica)
 
       if(nodeUrls.nonEmpty){
-        RepositoryLock.execute(repositoryName){
+        RepositoryLock.execute(repositoryName, "create repository"){
           // Insert to REPOSITORY and get timestamp
           val timestamp = NodeManager.insertRepository(repositoryName)
 

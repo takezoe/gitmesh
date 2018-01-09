@@ -20,7 +20,7 @@ class GitRepositoryProxyServer extends HttpServlet {
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
-    RepositoryLock.execute(repositoryName) {
+    RepositoryLock.execute(repositoryName, "git push") {
       // Update timestamp of the REPOSITORY table
       val timestamp = System.currentTimeMillis
       NodeManager.updateRepositoryTimestamp(repositoryName, timestamp)

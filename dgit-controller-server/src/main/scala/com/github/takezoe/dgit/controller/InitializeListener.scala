@@ -110,7 +110,7 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
   private def createReplicas(primaryNode: String, repositoryName: String, timestamp: Long, enabledNodes: Int): Unit = {
     val lackOfReplicas = config.replica - enabledNodes
 
-    RepositoryLock.execute(repositoryName){
+    RepositoryLock.execute(repositoryName, "create replica"){
       (1 to lackOfReplicas).foreach { _ =>
         // TODO check disk usage as well
         NodeManager.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
