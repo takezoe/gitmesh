@@ -89,17 +89,15 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
       // Check dead nodes
       val timeout = System.currentTimeMillis() - (60 * 1000)
 
-      Database.withTransaction { implicit conn =>
-        NodeManager.allNodes().foreach { case (nodeUrl, status) =>
-          if(status.timestamp < timeout){
-            log.warning(s"$nodeUrl is retired.")
-            NodeManager.removeNode(nodeUrl)
-          }
+      NodeManager.allNodes().foreach { case (nodeUrl, status) =>
+        if(status.timestamp < timeout){
+          log.warning(s"$nodeUrl is retired.")
+          NodeManager.removeNode(nodeUrl)
         }
       }
 
       // Create replica
-      val repos = Database.withTransaction { implicit conn =>
+      val repos = Database.withSession { implicit conn =>
         NodeManager.allRepositories()
       }
 

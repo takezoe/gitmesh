@@ -22,12 +22,12 @@ class GitRepositoryProxyServer extends HttpServlet {
 
     RepositoryLock.execute(repositoryName) {
       val timestamp = System.currentTimeMillis
-      val nodes = Database.withTransaction { implicit conn =>
+      val nodeUrls = Database.withTransaction { implicit conn =>
         NodeManager.updateRepositoryTimestamp(repositoryName, timestamp)
-        NodeManager.getNodeUrlsOfRepository(repositoryName)
+        NodeManager.getRepositoryStatus(repositoryName).map(_.nodes.map(_.nodeUrl)).getOrElse(Nil)
       }
 
-      if (nodes.nonEmpty) {
+      if (nodeUrls.nonEmpty) {
         val tmpFile = File.createTempFile("dgit", "tmpfile")
         try {
           using(req.getInputStream, new FileOutputStream(tmpFile)) { (in, out) =>
@@ -36,8 +36,8 @@ class GitRepositoryProxyServer extends HttpServlet {
 
           var responded = false
 
-          nodes.foreach { node =>
-            val builder = new Request.Builder().url(node + path + (if (queryString == null) "" else "?" + queryString))
+          nodeUrls.foreach { nodeUrl =>
+            val builder = new Request.Builder().url(nodeUrl + path + (if (queryString == null) "" else "?" + queryString))
 
             req.getHeaderNames.asScala.foreach { name =>
               builder.addHeader(name, req.getHeader(name))
@@ -63,9 +63,9 @@ class GitRepositoryProxyServer extends HttpServlet {
             } catch {
               // If request failed remove the node
               case e: Exception =>
-                log.error(s"Remove node $node by error: ${e.toString}")
+                log.error(s"Remove node $nodeUrl by error: ${e.toString}")
                 Database.withTransaction { implicit conn =>
-                  NodeManager.removeNode(node)
+                  NodeManager.removeNode(nodeUrl)
                 }
             }
           }
