@@ -31,7 +31,7 @@ You can run distributed-git-server only from source code for now. This guide sho
 
 You have to create an empty database before run the controller server.
 
-### Controller server
+### Start the controller server
 
 Modify `dgit-controller-server/src/main/resources/application.conf` for your environment, and run as following:
 
@@ -42,7 +42,7 @@ $ sbt ~jetty:start
 
 The controller server is started on port 8080 in default. Tables are created automatically in the database configured in `application.conf`.
 
-### Repository server
+### Start the repository server
 
 Modify `dgit-repository-server/src/main/resources/application.conf` for your environment, and run as following:
 
