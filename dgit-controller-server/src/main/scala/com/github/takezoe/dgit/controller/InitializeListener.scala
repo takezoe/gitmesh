@@ -58,7 +58,7 @@ class InitializeListener extends ServletContextListener {
       }
 
       // Re-create empty tables
-      new Solidbase().migrate(conn, Thread.currentThread.getContextClassLoader, new PostgresDatabase(), DGitMigrationModule)
+      new Solidbase().migrate(conn, Thread.currentThread.getContextClassLoader, new MySQLDatabase(), DGitMigrationModule)
       conn.commit()
     }
 
