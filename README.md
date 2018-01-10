@@ -1,20 +1,20 @@
 distributed-git-server
 ========
 
-Experimental project to make a distributed Git server
+An experimental project to make a distributed git server cluster
 
 The main goal of this project is to find a reasonable way to add scalability and redundancy to git repositories. Basic idea is locating git repositories on multiple nodes, and proxy requests from git clients to appropriate nodes. This approach is similar to [GitHub's DGit](https://githubengineering.com/introducing-dgit/).
 
-distributed-git-server cluster consists of following two components:
+The distributed gitserver cluster consists of following two kinds of servers:
 
 - [Controller server](https://github.com/takezoe/distributed-git-server/tree/master/dgit-controller-server)
 
-  This is a front server of distributed-git-server cluster. It manages repository servers and proxy requests fron git clients to appropriate repository servers. We can make redundant it by setup multiple instances with a load balancer. 
+  This is a front server of the cluster. It manages repository servers and proxy requests from git clients to appropriate repository servers. We can make redundant it by setup multiple instances with a load balancer. 
 
 - [Repository server](https://github.com/takezoe/distributed-git-server/tree/master/dgit-repository-server)
 
-  This is a storage server of distributed-git-server cluster. Git repositories are located on this kind of servers actually. We can add any number of repository server instances to distributed-git-server cluster.
+  This is a storage server of the cluster. Git repositories are located on this kind of servers actually. We can add any number of repository server instances to the cluster.
 
 ![Architecture](architecture.png)
 
-distributed-git-server is still under development. I will add a more detailed architecture documentation and an instruction which shows how to setup.
+This project is still under development phase, but if you are interested, please try it. Any feedback is welcome!
