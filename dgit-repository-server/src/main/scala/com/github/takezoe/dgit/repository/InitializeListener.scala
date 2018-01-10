@@ -27,7 +27,7 @@ class InitializeListener extends ServletContextListener {
   override def contextInitialized(sce: ServletContextEvent): Unit = {
     val config = Config.load()
 
-    new File(config.directory).unsafeTap { dir =>
+    defining(new File(config.directory)) { dir =>
       if(!dir.exists){
         dir.mkdirs()
       }
@@ -52,7 +52,7 @@ class NotifyActor(notifier: Notifier) extends Actor with HttpClientSupport {
 
 }
 
-class Notifier(config: Config) extends HttpClientSupport {
+class Notifier(config: Config) extends MultiHostHttpClientSupport {
 
   private val log = LoggerFactory.getLogger(classOf[Notifier])
 
@@ -64,8 +64,8 @@ class Notifier(config: Config) extends HttpClientSupport {
       JoinNodeRepository(dir.getName, timestamp)
     }
 
-    httpPostJson[String](
-      s"${config.controllerUrl}/api/nodes/notify",
+    httpPostJsonMulti[String](
+      config.controllerUrl.map { url => s"$url/api/nodes/notify" },
       JoinNodeRequest(config.url, diskUsage, repos)
     ) match {
       case Right(_) => // success

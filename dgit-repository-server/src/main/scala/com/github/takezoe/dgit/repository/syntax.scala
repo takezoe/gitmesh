@@ -31,11 +31,11 @@ object syntax {
     }
   }
 
-  implicit class AnyOps[T](value: T){
-    def unsafeTap(f: T => Unit): T = {
-      f(value)
-      value
-    }
-  }
+//  implicit class AnyOps[T](value: T){
+//    def unsafeTap(f: T => Unit): T = {
+//      f(value)
+//      value
+//    }
+//  }
 
 }
