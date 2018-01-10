@@ -31,7 +31,7 @@ You can run distributed-git-server only from source code for now. This guide sho
 
 You have to create an empty database before run the controller server.
 
-### Start controller server
+### Start the controller server
 
 Modify `dgit-controller-server/src/main/resources/application.conf` for your environment, and run the controller server as following:
 
@@ -42,7 +42,7 @@ $ sbt ~jetty:start
 
 The controller server is started on port 8080 in default. Tables are created automatically in the database configured in `application.conf`.
 
-### Start repository server
+### Start the repository server
 
 Modify `dgit-repository-server/src/main/resources/application.conf` for your environment, and run the repository server as following:
 
@@ -53,7 +53,7 @@ $ sbt ~jetty:start
 
 The repository server is started on port 8081 in default.
 
-### Check cluster operation
+### Check the cluster operation
 
 Let's create a new repository and push a commit using `git` command to check the cluster operation.
 
