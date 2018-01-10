@@ -58,7 +58,12 @@ class InitializeListener extends ServletContextListener {
       }
 
       // Re-create empty tables
-      new Solidbase().migrate(conn, Thread.currentThread.getContextClassLoader, new PostgresDatabase(), DGitMigrationModule)
+      new Solidbase().migrate(
+        conn,
+        Thread.currentThread.getContextClassLoader,
+        liquibaseDriver(config.database.url),
+        DGitMigrationModule
+      )
       conn.commit()
     }
 
@@ -68,6 +73,16 @@ class InitializeListener extends ServletContextListener {
     // Start background jobs
     val scheduler = QuartzSchedulerExtension(system)
     scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[CheckRepositoryNodeActor], config, dataStore)), "tick")
+  }
+
+  private def liquibaseDriver(url: String): liquibase.database.Database = {
+    if(url.startsWith("jdbc:postgresql://")){
+      new PostgresDatabase()
+    } else if(url.startsWith("jdbc:mysql://")){
+      new MySQLDatabase()
+    } else {
+      new UnsupportedDatabase()
+    }
   }
 
   protected def checkTableExist()(implicit conn: Connection): Boolean = {

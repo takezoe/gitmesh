@@ -12,6 +12,7 @@ libraryDependencies ++= Seq(
   "com.zaxxer"                 %  "HikariCP"                    % "2.7.4",
   "io.github.gitbucket"        %  "solidbase"                   % "1.0.2",
   "org.postgresql"             %  "postgresql"                  % "42.1.4",
+  "org.mariadb.jdbc"           %  "mariadb-java-client"         % "2.2.1",
   "commons-io"                 % "commons-io"                   % "2.6",
   //"org.apache.httpcomponents"  % "httpclient"                   % "4.5.4",
   //"com.h2database"             % "h2"                           % "1.4.196",
