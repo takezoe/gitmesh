@@ -45,13 +45,14 @@ class InitializeListener extends ServletContextListener {
 //        db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
 //        db.update(sql"DROP TABLE IF EXISTS NODE")
 
-        if(checkTableExist()){
-          // TODO これをやるのはマスターの起動時のみ
-          db.transaction {
-            db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL")
-            db.update(sql"DELETE FROM NODE_REPOSITORY")
-            db.update(sql"DELETE FROM NODE")
-            db.update(sql"DELETE FROM LOCK")
+        if(ControllerLock.runForMaster("**master**", config.url)) {
+          if (checkTableExist()) {
+            db.transaction {
+              db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL")
+              db.update(sql"DELETE FROM NODE_REPOSITORY")
+              db.update(sql"DELETE FROM NODE")
+              db.update(sql"DELETE FROM LOCK")
+            }
           }
         }
       }
