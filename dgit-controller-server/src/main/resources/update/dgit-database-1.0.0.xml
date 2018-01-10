@@ -37,15 +37,14 @@
   <addForeignKeyConstraint constraintName="IDX_NODE_REPOSITORY_FK1" baseTableName="NODE_REPOSITORY" baseColumnNames="REPOSITORY_NAME" referencedTableName="REPOSITORY" referencedColumnNames="REPOSITORY_NAME"/>
 
   <!--================================================================================================-->
-  <!-- REPOSITORY_LOCK -->
+  <!-- LOCK -->
   <!--================================================================================================-->
-  <createTable tableName="REPOSITORY_LOCK">
-    <column name="REPOSITORY_NAME" type="varchar(200)" nullable="false"/>
+  <createTable tableName="LOCK">
+    <column name="LOCK_KEY" type="varchar(200)" nullable="false"/>
     <column name="COMMENT" type="varchar(200)" nullable="true"/>
     <column name="LOCK_TIME" type="bigint" nullable="true"/>
   </createTable>
 
-  <addPrimaryKey constraintName="IDX_REPOSITORY_LOCK_PK" tableName="REPOSITORY_LOCK" columnNames="REPOSITORY_NAME"/>
-  <addForeignKeyConstraint constraintName="IDX_REPOSITORY_LOCK_FK0" baseTableName="REPOSITORY_LOCK" baseColumnNames="REPOSITORY_NAME" referencedTableName="REPOSITORY" referencedColumnNames="REPOSITORY_NAME"/>
+  <addPrimaryKey constraintName="IDX_LOCK_PK" tableName="LOCK" columnNames="LOCK_KEY"/>
 
 </changeSet>

@@ -49,8 +49,6 @@ class DataStore extends HttpClientSupport {
   }
 
   def updateNodeStatus(nodeUrl: String, diskUsage: Double): Unit = Database.withDB { db =>
-    log.info(s"Update node status: $nodeUrl")
-
     db.transaction {
       val timestamp = System.currentTimeMillis
       db.update(sql"UPDATE NODE SET LAST_UPDATE_TIME = $timestamp, DISK_USAGE = $diskUsage WHERE NODE_URL = $nodeUrl")
@@ -58,6 +56,8 @@ class DataStore extends HttpClientSupport {
   }
 
   def removeNode(nodeUrl: String): Unit = Database.withDB { db =>
+    log.info(s"Remove node: $nodeUrl")
+
     val repos = db.select(sql"SELECT REPOSITORY_NAME FROM REPOSITORY WHERE PRIMARY_NODE = $nodeUrl ") { rs =>
       rs.getString("REPOSITORY_NAME")
     }

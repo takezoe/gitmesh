@@ -38,21 +38,27 @@ class InitializeListener extends ServletContextListener {
     Database.initializeDataSource(config.database)
 
     Database.withConnection { implicit conn =>
-      // Drop all tables
       defining(DB(conn)){ db =>
 //        db.update(sql"DROP TABLE IF EXISTS VERSIONS")
-//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE")
+//        db.update(sql"DROP TABLE IF EXISTS LOCK")
+//        db.update(sql"DROP TABLE IF EXISTS NODE_REPOSITORY")
 //        db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
-//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY_NODE_STATUS")
+//        db.update(sql"DROP TABLE IF EXISTS NODE")
 
         if(checkTableExist()){
-          db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL")
-          db.update(sql"DELETE FROM NODE_REPOSITORY")
-          db.update(sql"DELETE FROM NODE")
+          // TODO これをやるのはマスターの起動時のみ
+          db.transaction {
+            db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL")
+            db.update(sql"DELETE FROM NODE_REPOSITORY")
+            db.update(sql"DELETE FROM NODE")
+            db.update(sql"DELETE FROM LOCK")
+          }
         }
       }
+
       // Re-create empty tables
       new Solidbase().migrate(conn, Thread.currentThread.getContextClassLoader, new PostgresDatabase(), DGitMigrationModule)
+      conn.commit()
     }
 
     // Setup controllers
@@ -87,22 +93,24 @@ class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Act
 
   override def receive = {
     case _ => {
-      // Check dead nodes
-      val timeout = System.currentTimeMillis() - (60 * 1000)
+      if(ControllerLock.runForMaster("**master**", config.url)){
+        // Check dead nodes
+        val timeout = System.currentTimeMillis() - (60 * 1000)
 
-      dataStore.allNodes().foreach { case (nodeUrl, status) =>
-        if(status.timestamp < timeout){
-          log.warning(s"$nodeUrl is retired.")
-          dataStore.removeNode(nodeUrl)
+        dataStore.allNodes().foreach { case (nodeUrl, status) =>
+          if(status.timestamp < timeout){
+            log.warning(s"$nodeUrl is retired.")
+            dataStore.removeNode(nodeUrl)
+          }
         }
-      }
 
-      // Create replica
-      val repos = dataStore.allRepositories()
+        // Create replica
+        val repos = dataStore.allRepositories()
 
-      repos.filter { x => x.nodes.size < config.replica }.foreach { x =>
-        x.primaryNode.foreach { primaryNode =>
-          createReplicas(primaryNode, x.name, x.timestamp, x.nodes.size)
+        repos.filter { x => x.nodes.size < config.replica }.foreach { x =>
+          x.primaryNode.foreach { primaryNode =>
+            createReplicas(primaryNode, x.name, x.timestamp, x.nodes.size)
+          }
         }
       }
     }

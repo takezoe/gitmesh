@@ -7,7 +7,7 @@ scalaVersion := "2.12.4"
 libraryDependencies ++= Seq(
   //"org.eclipse.jgit"           % "org.eclipse.jgit.http.server" % "4.9.2.201712150930-r",
   //"org.eclipse.jgit"           % "org.eclipse.jgit.archive"     % "4.9.2.201712150930-r",
-  "com.github.takezoe"        %% "resty"                        % "0.0.14",
+  "com.github.takezoe"        %% "resty"                        % "0.0.15-SNAPSHOT",
   "com.github.takezoe"        %% "scala-jdbc"                   % "1.0.5",
   "com.zaxxer"                 %  "HikariCP"                    % "2.7.4",
   "io.github.gitbucket"        %  "solidbase"                   % "1.0.2",

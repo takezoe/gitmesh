@@ -3,6 +3,7 @@ package com.github.takezoe.dgit.controller
 import com.typesafe.config.ConfigFactory
 
 case class Config(
+  url: String,
   replica: Int,
   maxDiskUsage: Double,
   database: DatabaseConfig
@@ -25,6 +26,7 @@ object Config {
   def load(): Config = {
     implicit val c = ConfigFactory.load()
     Config(
+      url          = c.getString("dgit.url"),
       replica      = c.getInt("dgit.replica"),
       maxDiskUsage = c.getDouble("dgit.maxDiskUsage"),
       database     = DatabaseConfig(
