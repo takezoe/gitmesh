@@ -63,17 +63,12 @@ You can create a new repository via Web API. In this case, a repository url is `
 $ curl -XPOST http://localhost:8080/api/repos/test
 ```
 
-Create a local repository:
+Create a local repository and push a first commit to the remote repository on the cluster:
 
 ```
 $ mkdir test
 $ cd test
 $ git init
-```
-
-Push a first commit to the remote repository on the cluster:
-
-```
 $ touch README.md
 $ git add .
 $ git commit -m 'first commit'
