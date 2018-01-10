@@ -3,59 +3,59 @@ package com.github.takezoe.dgit.controller
 import com.github.takezoe.resty._
 import org.slf4j.LoggerFactory
 
-class APIController(config: Config) extends HttpClientSupport {
+class APIController(config: Config, dataStore: DataStore) extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(classOf[APIController])
 
   @Action(method = "POST", path = "/api/nodes/notify")
   def notifyFromNode(node: JoinNodeRequest): Unit = {
-    if(NodeManager.existNode(node.url)){
-      NodeManager.updateNodeStatus(node.url, node.diskUsage)
+    if(dataStore.existNode(node.url)){
+      dataStore.updateNodeStatus(node.url, node.diskUsage)
     } else {
-      NodeManager.addNewNode(node.url, node.diskUsage, node.repos, config.replica)
+      dataStore.addNewNode(node.url, node.diskUsage, node.repos, config.replica)
     }
   }
 
   @Action(method = "GET", path = "/api/nodes")
   def listNodes(): Seq[Node] = {
-    NodeManager.allNodes().map { case (node, status) =>
+    dataStore.allNodes().map { case (node, status) =>
       Node(node, status.diskUsage, status.repos)
     }
   }
 
   @Action(method = "GET", path = "/api/repos")
   def listRepositories(): Seq[Repository] = {
-    NodeManager.allRepositories()
+    dataStore.allRepositories()
   }
 
   @Action(method = "DELETE", path = "/api/repos/{repositoryName}")
   def deleteRepository(repositoryName: String): Unit = {
-    NodeManager
+    dataStore
       .getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
       .foreach { nodeUrl =>
         try {
           // Delete a repository from the node
           httpDelete[String](s"$nodeUrl/api/repos/$repositoryName")
           // Delete from NODE_REPOSITORY
-          NodeManager.deleteRepository(nodeUrl, repositoryName)
+          dataStore.deleteRepository(nodeUrl, repositoryName)
         } catch {
           case e: Exception => log.error(s"Failed to delete repository $repositoryName on $nodeUrl", e)
         }
       }
 
     // Delete from REPOSITORY
-    NodeManager.deleteRepository(repositoryName)
+    dataStore.deleteRepository(repositoryName)
   }
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}")
   def createRepository(repositoryName: String): ActionResult[Unit] = {
-    val repo = NodeManager.getRepositoryStatus(repositoryName)
+    val repo = dataStore.getRepositoryStatus(repositoryName)
 
     if(repo.nonEmpty){
       BadRequest(ErrorModel(Seq("Repository already exists.")))
 
     } else {
-      val nodeUrls = NodeManager.allNodes()
+      val nodeUrls = dataStore.allNodes()
         .filter { case (_, status) => status.diskUsage < config.maxDiskUsage }
         .sortBy { case (_, status) => status.diskUsage }
         .take(config.replica)
@@ -63,7 +63,7 @@ class APIController(config: Config) extends HttpClientSupport {
       if(nodeUrls.nonEmpty){
         RepositoryLock.execute(repositoryName, "create repository"){
           // Insert to REPOSITORY and get timestamp
-          val timestamp = NodeManager.insertRepository(repositoryName)
+          val timestamp = dataStore.insertRepository(repositoryName)
 
           nodeUrls.foreach { case (nodeUrl, _) =>
             try {
@@ -72,7 +72,7 @@ class APIController(config: Config) extends HttpClientSupport {
                 builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
               })
               // Insert to NODE_REPOSITORY
-              NodeManager.insertNodeRepository(nodeUrl, repositoryName)
+              dataStore.insertNodeRepository(nodeUrl, repositoryName)
 
             } catch {
               case e: Exception =>

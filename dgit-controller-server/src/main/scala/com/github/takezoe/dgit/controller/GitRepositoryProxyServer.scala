@@ -13,6 +13,7 @@ import syntax._
 class GitRepositoryProxyServer extends HttpServlet {
 
   private val log = LoggerFactory.getLogger(classOf[GitRepositoryProxyServer])
+  private val dataStore = new DataStore()
   private val client = new OkHttpClient()
 
   override def doPost(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
@@ -23,9 +24,9 @@ class GitRepositoryProxyServer extends HttpServlet {
     RepositoryLock.execute(repositoryName, "git push") {
       // Update timestamp of the REPOSITORY table
       val timestamp = System.currentTimeMillis
-      NodeManager.updateRepositoryTimestamp(repositoryName, timestamp)
+      dataStore.updateRepositoryTimestamp(repositoryName, timestamp)
       // Get relay destinations
-      val nodeUrls = NodeManager.getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
+      val nodeUrls = dataStore.getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
 
       if (nodeUrls.nonEmpty) {
         val tmpFile = File.createTempFile("dgit", "tmpfile")
@@ -64,7 +65,7 @@ class GitRepositoryProxyServer extends HttpServlet {
               // If request failed remove the node
               case e: Exception =>
                 log.error(s"Remove node $nodeUrl by error: ${e.toString}")
-                NodeManager.removeNode(nodeUrl)
+                dataStore.removeNode(nodeUrl)
             }
           }
         } finally {
@@ -81,7 +82,7 @@ class GitRepositoryProxyServer extends HttpServlet {
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
-    val primaryNode = NodeManager.getRepositoryStatus(repositoryName).map(_.primaryNode).flatten
+    val primaryNode = dataStore.getRepositoryStatus(repositoryName).map(_.primaryNode).flatten
 
     primaryNode.map { nodeUrl =>
       val builder = new Request.Builder().url(nodeUrl + path + (if(queryString == null) "" else "?" + queryString))
@@ -108,7 +109,7 @@ class GitRepositoryProxyServer extends HttpServlet {
         // If request failed, remove the node and try other nodes
         case e: Exception =>
           log.error(s"Remove node $nodeUrl by error: ${e.toString}")
-          NodeManager.removeNode(nodeUrl)
+          dataStore.removeNode(nodeUrl)
           doGet(req, resp)
       }
     }.getOrElse {

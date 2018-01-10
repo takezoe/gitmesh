@@ -32,6 +32,7 @@ class InitializeListener extends ServletContextListener {
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
     val config = Config.load()
+    val dataStore = new DataStore()
 
     // Initialize the node status db
     Database.initializeDataSource(config.database)
@@ -55,11 +56,11 @@ class InitializeListener extends ServletContextListener {
     }
 
     // Setup controllers
-    Resty.register(new APIController(config))
+    Resty.register(new APIController(config, dataStore))
 
     // Start background jobs
     val scheduler = QuartzSchedulerExtension(system)
-    scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[CheckRepositoryNodeActor], config)), "tick")
+    scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[CheckRepositoryNodeActor], config, dataStore)), "tick")
   }
 
   protected def checkTableExist()(implicit conn: Connection): Boolean = {
@@ -80,7 +81,7 @@ object DGitMigrationModule extends Module("dgit",
   new Version("1.0.0", new LiquibaseMigration("update/dgit-database-1.0.0.xml"))
 )
 
-class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupport {
+class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Actor with HttpClientSupport {
 
   private val log = Logging(context.system, this)
 
@@ -89,15 +90,15 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
       // Check dead nodes
       val timeout = System.currentTimeMillis() - (60 * 1000)
 
-      NodeManager.allNodes().foreach { case (nodeUrl, status) =>
+      dataStore.allNodes().foreach { case (nodeUrl, status) =>
         if(status.timestamp < timeout){
           log.warning(s"$nodeUrl is retired.")
-          NodeManager.removeNode(nodeUrl)
+          dataStore.removeNode(nodeUrl)
         }
       }
 
       // Create replica
-      val repos = NodeManager.allRepositories()
+      val repos = dataStore.allRepositories()
 
       repos.filter { x => x.nodes.size < config.replica }.foreach { x =>
         x.primaryNode.foreach { primaryNode =>
@@ -113,14 +114,14 @@ class CheckRepositoryNodeActor(config: Config) extends Actor with HttpClientSupp
     RepositoryLock.execute(repositoryName, "create replica"){
       (1 to lackOfReplicas).foreach { _ =>
         // TODO check disk usage as well
-        NodeManager.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
+        dataStore.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
           log.info(s"Create replica of ${repositoryName} at $nodeUrl")
           // Create replica repository
           httpPutJson(s"$nodeUrl/api/repos/${repositoryName}", CloneRequest(primaryNode), builder => {
             builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
           })
           // Insert record
-          NodeManager.insertNodeRepository(nodeUrl, repositoryName)
+          dataStore.insertNodeRepository(nodeUrl, repositoryName)
         }
       }
     }

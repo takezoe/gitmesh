@@ -4,8 +4,7 @@ import com.github.takezoe.resty.HttpClientSupport
 import org.slf4j.LoggerFactory
 import com.github.takezoe.scala.jdbc._
 
-// TODO Should be a class?
-object NodeManager extends HttpClientSupport {
+class DataStore extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(getClass)
 
