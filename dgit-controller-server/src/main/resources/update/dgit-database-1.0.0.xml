@@ -39,12 +39,12 @@
   <!--================================================================================================-->
   <!-- LOCK -->
   <!--================================================================================================-->
-  <createTable tableName="LOCK">
+  <createTable tableName="EXCLUSIVE_LOCK">
     <column name="LOCK_KEY" type="varchar(200)" nullable="false"/>
     <column name="COMMENT" type="varchar(200)" nullable="true"/>
     <column name="LOCK_TIME" type="bigint" nullable="true"/>
   </createTable>
 
-  <addPrimaryKey constraintName="IDX_LOCK_PK" tableName="LOCK" columnNames="LOCK_KEY"/>
+  <addPrimaryKey constraintName="IDX_EXCLUSIVE_LOCK_PK" tableName="EXCLUSIVE_LOCK" columnNames="LOCK_KEY"/>
 
 </changeSet>

@@ -22,7 +22,7 @@ object RepositoryLock {
       try {
         db.transaction {
           val lock = db.selectFirst(
-            sql"SELECT COMMENT, LOCK_TIME AS COUNT FROM LOCK WHERE LOCK_KEY = $repositoryName"
+            sql"SELECT COMMENT, LOCK_TIME AS COUNT FROM EXCLUSIVE_LOCK WHERE LOCK_KEY = $repositoryName"
           ){ rs => (rs.getString("COMMENT"), rs.getLong("LOCK_TIME")) }
 
           lock.foreach { case (comment, lockTime) =>
@@ -30,7 +30,7 @@ object RepositoryLock {
           }
 
           val timestamp = System.currentTimeMillis
-          db.update(sql"INSERT INTO LOCK (LOCK_KEY, COMMENT, LOCK_TIME) VALUES ($repositoryName, $comment, $timestamp)")
+          db.update(sql"INSERT INTO EXCLUSIVE_LOCK (LOCK_KEY, COMMENT, LOCK_TIME) VALUES ($repositoryName, $comment, $timestamp)")
         }
 
         try {
@@ -40,7 +40,7 @@ object RepositoryLock {
         }
       } finally {
         db.transaction {
-          db.update(sql"DELETE FROM LOCK WHERE LOCK_KEY = $repositoryName")
+          db.update(sql"DELETE FROM EXCLUSIVE_LOCK WHERE LOCK_KEY = $repositoryName")
         }
       }
     } catch {

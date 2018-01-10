@@ -14,7 +14,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import io.github.gitbucket.solidbase.migration.LiquibaseMigration
 import io.github.gitbucket.solidbase.model.{Module, Version}
-import liquibase.database.core.PostgresDatabase
+import liquibase.database.core._
 import com.github.takezoe.scala.jdbc._
 import syntax._
 
@@ -45,13 +45,13 @@ class InitializeListener extends ServletContextListener {
 //        db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
 //        db.update(sql"DROP TABLE IF EXISTS NODE")
 
-        if(ControllerLock.runForMaster("**master**", config.url)) {
-          if (checkTableExist()) {
+        if (checkTableExist()) {
+          if(ControllerLock.runForMaster("**master**", config.url)) {
             db.transaction {
               db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL")
               db.update(sql"DELETE FROM NODE_REPOSITORY")
               db.update(sql"DELETE FROM NODE")
-              db.update(sql"DELETE FROM LOCK")
+              db.update(sql"DELETE FROM EXCLUSIVE_LOCK")
             }
           }
         }

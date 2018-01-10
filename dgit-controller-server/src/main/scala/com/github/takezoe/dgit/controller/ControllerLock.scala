@@ -12,19 +12,19 @@ object ControllerLock {
       val timestamp = System.currentTimeMillis
 
       val lock = db.selectFirst(
-        sql"SELECT COMMENT, LOCK_TIME FROM LOCK WHERE LOCK_KEY = $key"
+        sql"SELECT COMMENT, LOCK_TIME FROM EXCLUSIVE_LOCK WHERE LOCK_KEY = $key"
       ){ rs => (rs.getString("COMMENT"), rs.getLong("LOCK_TIME")) }
 
       lock match {
         // Already be a master
         case Some((comment, _)) if comment == node =>
-          db.update(sql"UPDATE LOCK SET LOCK_TIME = $timestamp WHERE LOCK_KEY = $key AND COMMENT = $node")
+          db.update(sql"UPDATE EXCLUSIVE_LOCK SET LOCK_TIME = $timestamp WHERE LOCK_KEY = $key AND COMMENT = $node")
           true
         // Timeout
         case Some((_, lockTime)) if lockTime < System.currentTimeMillis - timeout =>
           log.info(s"Lock $key has been timeout")
           try {
-            db.update(sql"UPDATE LOCK SET COMMENT = $node, LOCK_TIME = $timestamp WHERE LOCK_KEY = $key")
+            db.update(sql"UPDATE EXCLUSIVE_LOCK SET COMMENT = $node, LOCK_TIME = $timestamp WHERE LOCK_KEY = $key")
             true
           } catch {
             case e: Exception =>
@@ -35,7 +35,7 @@ object ControllerLock {
         case Some(_) => false
         // Possible to get a lock
         case None => try {
-          db.update(sql"INSERT INTO LOCK (LOCK_KEY, COMMENT, LOCK_TIME) VALUES ($key, $node, $timestamp)")
+          db.update(sql"INSERT INTO EXCLUSIVE_LOCK (LOCK_KEY, COMMENT, LOCK_TIME) VALUES ($key, $node, $timestamp)")
           true
         } catch {
           case e: Exception =>
