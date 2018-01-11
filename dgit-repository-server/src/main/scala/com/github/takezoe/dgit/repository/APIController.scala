@@ -2,7 +2,6 @@ package com.github.takezoe.dgit.repository
 
 import java.io.File
 
-import syntax._
 import com.github.takezoe.resty._
 import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
@@ -33,20 +32,19 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   def createRepository(repositoryName: String,
                        @Param(from = "header", name = "DGIT-UPDATE-ID") timestamp: Long): ActionResult[Unit] = {
     // Delete the repository directory if it exists
-    defining(new File(config.directory, repositoryName)){ dir =>
-      if(dir.exists){
-        FileUtils.forceDelete(dir)
-      }
+    val dir = new File(config.directory, repositoryName))
+    if(dir.exists){
+      FileUtils.forceDelete(dir)
     }
 
     log.info(s"Create repository: $repositoryName")
 
-    // Write stimestamp
-    val file = new File(config.directory, s"$repositoryName.id")
-    FileUtils.write(file, timestamp.toString, "UTF-8")
-
     // git init
     gitInit(repositoryName)
+
+    // Write timestamp
+    val file = new File(config.directory, s"$repositoryName.id")
+    FileUtils.write(file, timestamp.toString, "UTF-8")
 
     Ok((): Unit)
   }
@@ -73,9 +71,14 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   def deleteRepository(repositoryName: String): Unit = {
     log.info(s"Delete repository: $repositoryName")
 
-    val dir = new File(config.directory, repositoryName)
+    val dir = new File(config.directory, repositoryName))
     if(dir.exists){
       FileUtils.forceDelete(dir)
+    }
+
+    val file = new File(config.directory, s"$repositoryName.id"))
+    if(file.exists){
+      FileUtils.forceDelete(file)
     }
   }
 
@@ -85,15 +88,10 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
     val cloneUrl = s"${config.url}/git/$repositoryName.git"
     log.info(s"Synchronize repository: $repositoryName with ${cloneUrl}")
 
-    // write timestamp
-    val file = new File(config.directory, s"$repositoryName.id")
-    FileUtils.write(file, timestamp.toString, "UTF-8")
-
     // Delete the repository directory if it exists
-    defining(new File(config.directory, repositoryName)){ dir =>
-      if(dir.exists){
-        FileUtils.forceDelete(dir)
-      }
+    val dir = new File(config.directory, repositoryName)
+    if(dir.exists){
+      FileUtils.forceDelete(dir)
     }
 
     // Clone
@@ -104,6 +102,10 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
       // Clone from the source repository
       case _ => gitClone(repositoryName, cloneUrl)
     }
+
+    // write timestamp
+    val file = new File(config.directory, s"$repositoryName.id")
+    FileUtils.write(file, timestamp.toString, "UTF-8")
   }
 
 }
