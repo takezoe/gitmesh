@@ -3,7 +3,7 @@ distributed-git-server
 
 ## What's this?
 
-This is an experimental project to make a distributed git server cluster. The main goal of this project is to find a reasonable way to add scalability and redundancy to git repositories. Basic idea is locating git repositories on multiple nodes, and proxy requests from git clients to appropriate nodes. This approach is similar to [GitHub's DGit](https://githubengineering.com/introducing-dgit/).
+This is an experimental project to make a distributed git server cluster. The main goal of this project is to find a reasonable way to add scalability and redundancy to git repositories. Basic idea is locating git repositories on multiple nodes, and proxy requests from git clients to appropriate nodes. This approach is similar to [GitHub's DGit](https://githubengineering.com/introducing-dgit/) (it has been renamed to [Spokes](https://githubengineering.com/building-resilience-in-spokes/)).
 
 The distributed gitserver cluster consists of following two kinds of servers:
 
