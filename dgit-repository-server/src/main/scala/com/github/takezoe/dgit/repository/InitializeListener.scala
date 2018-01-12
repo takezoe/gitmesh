@@ -55,6 +55,7 @@ class NotifyActor(notifier: Notifier) extends Actor with HttpClientSupport {
 class Notifier(config: Config) extends MultiHostHttpClientSupport {
 
   private val log = LoggerFactory.getLogger(classOf[Notifier])
+  private val urls = new RoundRobinUrls(config.controllerUrl.map { url => s"$url/api/nodes/notify" })
 
   def send(): Unit = {
     val rootDir = new File(config.directory)
@@ -64,10 +65,7 @@ class Notifier(config: Config) extends MultiHostHttpClientSupport {
       JoinNodeRepository(dir.getName, timestamp)
     }
 
-    httpPostJsonMulti[String](
-      config.controllerUrl.map { url => s"$url/api/nodes/notify" },
-      JoinNodeRequest(config.url, diskUsage, repos)
-    ) match {
+    httpPostJsonMulti[String](urls, JoinNodeRequest(config.url, diskUsage, repos)) match {
       case Right(_) => // success
       case Left(e) => log.error(e.errors.mkString("\n"))
     }
