@@ -32,7 +32,7 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   def createRepository(repositoryName: String,
                        @Param(from = "header", name = "DGIT-UPDATE-ID") timestamp: Long): ActionResult[Unit] = {
     // Delete the repository directory if it exists
-    val dir = new File(config.directory, repositoryName))
+    val dir = new File(config.directory, repositoryName)
     if(dir.exists){
       FileUtils.forceDelete(dir)
     }
@@ -71,12 +71,12 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   def deleteRepository(repositoryName: String): Unit = {
     log.info(s"Delete repository: $repositoryName")
 
-    val dir = new File(config.directory, repositoryName))
+    val dir = new File(config.directory, repositoryName)
     if(dir.exists){
       FileUtils.forceDelete(dir)
     }
 
-    val file = new File(config.directory, s"$repositoryName.id"))
+    val file = new File(config.directory, s"$repositoryName.id")
     if(file.exists){
       FileUtils.forceDelete(file)
     }
