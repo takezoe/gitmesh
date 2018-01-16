@@ -111,7 +111,7 @@ class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Act
     case _ => {
       if(ControllerLock.runForMaster("**master**", config.url)){
         // Check dead nodes
-        val timeout = System.currentTimeMillis() - (60 * 1000)
+        val timeout = System.currentTimeMillis() - (60 * 1000) // TODO Be configurable
 
         dataStore.allNodes().foreach { case (nodeUrl, status) =>
           if(status.timestamp < timeout){
@@ -141,9 +141,11 @@ class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Act
         dataStore.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
           log.info(s"Create replica of ${repositoryName} at $nodeUrl")
           // Create replica repository
-          httpPutJson(s"$nodeUrl/api/repos/${repositoryName}", CloneRequest(primaryNode), builder => {
-            builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
-          })
+          httpPutJson(
+            new SimpleRequestExecutor(s"$nodeUrl/api/repos/${repositoryName}", Config.httpExecutorConfig),
+            CloneRequest(primaryNode),
+            builder => { builder.addHeader("DGIT-UPDATE-ID", timestamp.toString) }
+          )
           // Insert record
           dataStore.insertNodeRepository(nodeUrl, repositoryName)
         }

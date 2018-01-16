@@ -36,7 +36,7 @@ class InitializeListener extends ServletContextListener {
     Resty.register(new APIController()(config))
 
     val notifier = new Notifier(config)
-    notifier.send()
+    //notifier.send()
 
     val scheduler = QuartzSchedulerExtension(system)
     scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[NotifyActor], notifier)), "tick")
@@ -52,10 +52,13 @@ class NotifyActor(notifier: Notifier) extends Actor with HttpClientSupport {
 
 }
 
-class Notifier(config: Config) extends MultiHostHttpClientSupport {
+class Notifier(config: Config) extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(classOf[Notifier])
-  private val urls = new RoundRobinUrls(config.controllerUrl.map { url => s"$url/api/nodes/notify" })
+  private val urls = new RandomRequestExecutor(
+    config.controllerUrl.map { url => s"$url/api/nodes/notify" },
+    Config.httpExecutorConfig.copy(maxFailure = 5, resetInterval = 5 * 60 * 1000) // TODO Be configurable
+  )
 
   def send(): Unit = {
     val rootDir = new File(config.directory)
@@ -65,7 +68,7 @@ class Notifier(config: Config) extends MultiHostHttpClientSupport {
       JoinNodeRepository(dir.getName, timestamp)
     }
 
-    httpPostJsonMulti[String](urls, JoinNodeRequest(config.url, diskUsage, repos)) match {
+    httpPostJson[String](urls, JoinNodeRequest(config.url, diskUsage, repos)) match {
       case Right(_) => // success
       case Left(e) => log.error(e.errors.mkString("\n"))
     }

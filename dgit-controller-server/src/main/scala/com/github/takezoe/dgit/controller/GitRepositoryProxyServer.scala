@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory
 
 import syntax._
 
+// TODO Retry requests?
 class GitRepositoryProxyServer extends HttpServlet {
 
   private val log = LoggerFactory.getLogger(classOf[GitRepositoryProxyServer])

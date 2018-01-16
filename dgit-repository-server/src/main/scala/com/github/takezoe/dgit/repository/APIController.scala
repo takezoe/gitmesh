@@ -95,7 +95,9 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
     }
 
     // Clone
-    httpGet[Repository](s"${request.nodeUrl}/api/repos/$repositoryName") match {
+    httpGet[Repository](new SimpleRequestExecutor(
+      s"${request.nodeUrl}/api/repos/$repositoryName", Config.httpExecutorConfig
+    )) match {
       case Left(e) => throw new RuntimeException(e.errors.mkString("\n"))
       // Source is an empty repository
       case Right(x) if x.empty => gitInit(repositoryName)

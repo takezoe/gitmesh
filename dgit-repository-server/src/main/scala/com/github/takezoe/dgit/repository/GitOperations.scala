@@ -24,6 +24,7 @@ trait GitOperations {
     }
   }
 
+  // TODO Retry clone if failed
   def gitClone(repositoryName: String, sourceUrl: String)(implicit config: Config): Unit = {
     using(Git.cloneRepository().setBare(true).setURI(sourceUrl)
       .setDirectory(new File(config.directory, repositoryName)).setCloneAllBranches(true).call()){ git =>

@@ -7,7 +7,7 @@ scalaVersion := "2.12.4"
 libraryDependencies ++= Seq(
   "org.eclipse.jgit"           % "org.eclipse.jgit.http.server" % "4.9.2.201712150930-r",
   "org.eclipse.jgit"           % "org.eclipse.jgit.archive"     % "4.9.2.201712150930-r",
-  "com.github.takezoe"        %% "resty"                        % "0.0.15",
+  "com.github.takezoe"        %% "resty"                        % "0.0.16-SNAPSHOT",
   "commons-io"                 % "commons-io"                   % "2.6",
   "ch.qos.logback"             % "logback-classic"              % "1.2.3",
   "com.zaxxer"                 % "HikariCP"                     % "2.7.4",

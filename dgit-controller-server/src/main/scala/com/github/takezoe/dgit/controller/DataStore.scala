@@ -1,6 +1,6 @@
 package com.github.takezoe.dgit.controller
 
-import com.github.takezoe.resty.HttpClientSupport
+import com.github.takezoe.resty.{HttpClientSupport, SimpleRequestExecutor}
 import org.slf4j.LoggerFactory
 import com.github.takezoe.scala.jdbc._
 
@@ -38,7 +38,7 @@ class DataStore extends HttpClientSupport {
               db.update(sql"INSERT INTO NODE_REPOSITORY (NODE_URL, REPOSITORY_NAME) VALUES ($nodeUrl, ${repo.name})")
             case _ =>
               try {
-                httpDelete(s"$nodeUrl/api/repos/${repo.name}")
+                httpDelete(new SimpleRequestExecutor(s"$nodeUrl/api/repos/${repo.name}", Config.httpExecutorConfig)) // TODO Check left?
               } catch {
                 case e: Exception => log.error(s"Failed to delete repository ${repo.name} from $nodeUrl", e)
               }
