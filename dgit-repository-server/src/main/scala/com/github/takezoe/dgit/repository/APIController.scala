@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory
 class APIController(implicit val config: Config) extends HttpClientSupport with GitOperations {
 
   private val log = LoggerFactory.getLogger(classOf[APIController])
+  implicit override val httpClientConfig = Config.httpClientConfig
 
   private def getRepositories(): Seq[String] = {
     val rootDir = new File(config.directory)
@@ -95,9 +96,7 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
     }
 
     // Clone
-    httpGet[Repository](new SimpleRequestExecutor(
-      s"${request.nodeUrl}/api/repos/$repositoryName", Config.httpExecutorConfig
-    )) match {
+    httpGet[Repository](s"${request.nodeUrl}/api/repos/$repositoryName") match {
       case Left(e) => throw new RuntimeException(e.errors.mkString("\n"))
       // Source is an empty repository
       case Right(x) if x.empty => gitInit(repositoryName)

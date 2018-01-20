@@ -1,6 +1,6 @@
 package com.github.takezoe.dgit.repository
 
-import com.github.takezoe.resty.HttpExecutorConfig
+import com.github.takezoe.resty.HttpClientConfig
 import com.typesafe.config.ConfigFactory
 
 import scala.collection.JavaConverters._
@@ -13,7 +13,7 @@ case class Config(
 
 object Config {
 
-  val httpExecutorConfig = HttpExecutorConfig(maxRetry = 5, retryInterval = 500) // TODO Be configurable
+  val httpClientConfig = HttpClientConfig(maxRetry = 5, retryInterval = 500) // TODO Be configurable
 
   def load(): Config = {
     val c = ConfigFactory.load()

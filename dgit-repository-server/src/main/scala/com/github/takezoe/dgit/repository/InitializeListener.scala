@@ -55,10 +55,9 @@ class NotifyActor(notifier: Notifier) extends Actor with HttpClientSupport {
 class Notifier(config: Config) extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(classOf[Notifier])
-  private val urls = new RandomRequestExecutor(
-    config.controllerUrl.map { url => s"$url/api/nodes/notify" },
-    Config.httpExecutorConfig.copy(maxFailure = 5, resetInterval = 5 * 60 * 1000) // TODO Be configurable
-  )
+  private val urls = config.controllerUrl.map { url => s"$url/api/nodes/notify" }
+  // TODO Be configurable
+  implicit override val httpClientConfig = Config.httpClientConfig.copy(maxFailure = 5, resetInterval = 5 * 60 * 1000)
 
   def send(): Unit = {
     val rootDir = new File(config.directory)
