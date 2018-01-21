@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 class APIController(config: Config, dataStore: DataStore) extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(classOf[APIController])
+  implicit override val httpClientConfig = Config.httpClientConfig
 
   @Action(method = "POST", path = "/api/nodes/notify")
   def notifyFromNode(node: JoinNodeRequest): Unit = {
@@ -35,7 +36,7 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
       .foreach { nodeUrl =>
         try {
           // Delete a repository from the node
-          httpDelete[String](new SimpleRequestExecutor(s"$nodeUrl/api/repos/$repositoryName", Config.httpExecutorConfig))
+          httpDelete[String](s"$nodeUrl/api/repos/$repositoryName")
           // Delete from NODE_REPOSITORY
           dataStore.deleteRepository(nodeUrl, repositoryName)
         } catch {
@@ -69,10 +70,10 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
             try {
               // Create a repository on the node
               httpPost(
-                new SimpleRequestExecutor(s"$nodeUrl/api/repos/${repositoryName}", Config.httpExecutorConfig),
+                s"$nodeUrl/api/repos/${repositoryName}",
                 Map.empty,
-                builder => { builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
-              })
+                builder => { builder.addHeader("DGIT-UPDATE-ID", timestamp.toString) }
+              )
               // Insert to NODE_REPOSITORY
               dataStore.insertNodeRepository(nodeUrl, repositoryName)
 

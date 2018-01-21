@@ -1,6 +1,6 @@
 package com.github.takezoe.dgit.controller
 
-import com.github.takezoe.resty.HttpExecutorConfig
+import com.github.takezoe.resty.HttpClientConfig
 import com.typesafe.config.ConfigFactory
 
 case class Config(
@@ -24,7 +24,7 @@ case class DatabaseConfig(
 
 object Config {
 
-  val httpExecutorConfig = HttpExecutorConfig(maxRetry = 5, retryInterval = 500) // TODO Be configurable
+  val httpClientConfig = HttpClientConfig(maxRetry = 5, retryInterval = 500)
 
   def load(): Config = {
     implicit val c = ConfigFactory.load()

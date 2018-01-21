@@ -106,6 +106,7 @@ object DGitMigrationModule extends Module("dgit",
 class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Actor with HttpClientSupport {
 
   private val log = Logging(context.system, this)
+  implicit override val httpClientConfig = Config.httpClientConfig
 
   override def receive = {
     case _ => {
@@ -142,7 +143,7 @@ class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Act
           log.info(s"Create replica of ${repositoryName} at $nodeUrl")
           // Create replica repository
           httpPutJson(
-            new SimpleRequestExecutor(s"$nodeUrl/api/repos/${repositoryName}", Config.httpExecutorConfig),
+            s"$nodeUrl/api/repos/${repositoryName}",
             CloneRequest(primaryNode),
             builder => { builder.addHeader("DGIT-UPDATE-ID", timestamp.toString) }
           )

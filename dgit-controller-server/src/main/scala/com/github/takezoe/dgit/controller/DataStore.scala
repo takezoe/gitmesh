@@ -1,12 +1,13 @@
 package com.github.takezoe.dgit.controller
 
-import com.github.takezoe.resty.{HttpClientSupport, SimpleRequestExecutor}
+import com.github.takezoe.resty.HttpClientSupport
 import org.slf4j.LoggerFactory
 import com.github.takezoe.scala.jdbc._
 
 class DataStore extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(getClass)
+  implicit override val httpClientConfig = Config.httpClientConfig
 
   def existNode(nodeUrl: String): Boolean = Database.withDB { db =>
     val count = db.selectFirst(sql"SELECT COUNT(*) AS COUNT FROM NODE WHERE NODE_URL = $nodeUrl")(_.getInt("COUNT"))
@@ -38,7 +39,7 @@ class DataStore extends HttpClientSupport {
               db.update(sql"INSERT INTO NODE_REPOSITORY (NODE_URL, REPOSITORY_NAME) VALUES ($nodeUrl, ${repo.name})")
             case _ =>
               try {
-                httpDelete(new SimpleRequestExecutor(s"$nodeUrl/api/repos/${repo.name}", Config.httpExecutorConfig)) // TODO Check left?
+                httpDelete(s"$nodeUrl/api/repos/${repo.name}") // TODO Check left?
               } catch {
                 case e: Exception => log.error(s"Failed to delete repository ${repo.name} from $nodeUrl", e)
               }

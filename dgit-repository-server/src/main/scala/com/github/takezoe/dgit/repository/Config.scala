@@ -13,7 +13,7 @@ case class Config(
 
 object Config {
 
-  val httpClientConfig = HttpClientConfig(maxRetry = 5, retryInterval = 500) // TODO Be configurable
+  val httpClientConfig = HttpClientConfig(maxRetry = 5, retryInterval = 500)
 
   def load(): Config = {
     val c = ConfigFactory.load()
