@@ -29,7 +29,12 @@ You can run distributed-git-server only from source code for now. This guide sho
 - sbt
 - MySQL
 
-You have to create an empty database before run the controller server.
+You have to create an empty database before run the controller server. If you use docker, run a MySQL container as follows:
+
+```
+$ docker pull mysql
+$ docker run --name mysql -e MYSQL_ROOT_PASSWORD=mysql MYSQL_DATABASE=dgit -d -p 3306:3306 mysql
+```
 
 ### Start the controller server
 
