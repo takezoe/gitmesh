@@ -1,8 +1,6 @@
 package com.github.takezoe.dgit.controller
 
 import java.sql.Connection
-
-import com.github.takezoe.scala.jdbc.DB
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import syntax._
 
@@ -33,9 +31,16 @@ object Database {
     dataSource.close()
   }
 
-  def withDB[T](f: (DB) => T): T = {
-    DB.autoClose(dataSource.getConnection){ db =>
-      f(db)
+  def withTransaction[T](conn: Connection)(f: => T): T = {
+    conn.setAutoCommit(false)
+    try {
+      val result = f
+      conn.commit()
+      result
+    } catch {
+      case e: Exception =>
+        conn.rollback()
+        throw e
     }
   }
 

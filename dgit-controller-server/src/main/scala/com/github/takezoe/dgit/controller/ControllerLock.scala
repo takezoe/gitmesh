@@ -1,30 +1,29 @@
 package com.github.takezoe.dgit.controller
 
-import com.github.takezoe.scala.jdbc._
 import org.slf4j.LoggerFactory
+import models._
+import com.github.takezoe.tranquil._
+import com.github.takezoe.tranquil.Dialect.mysql
 
 object ControllerLock {
 
   private val log = LoggerFactory.getLogger(ControllerLock.getClass)
 
-  def runForMaster(key: String, node: String, timeout: Long = 5 * 60 * 1000): Boolean = Database.withDB { db =>
-    db.transaction {
+  def runForMaster(key: String, node: String, timeout: Long = 5 * 60 * 1000): Boolean = Database.withConnection { conn =>
+    Database.withTransaction(conn){
       val timestamp = System.currentTimeMillis
-
-      val lock = db.selectFirst(
-        sql"SELECT COMMENT, LOCK_TIME FROM EXCLUSIVE_LOCK WHERE LOCK_KEY = $key"
-      ){ rs => (rs.getString("COMMENT"), rs.getLong("LOCK_TIME")) }
+      val lock = ExclusiveLocks.filter(_.lockKey eq key).map(t => t.comment ~ t.lockTime).firstOption(conn)
 
       lock match {
         // Already be a master
-        case Some((comment, _)) if comment == node =>
-          db.update(sql"UPDATE EXCLUSIVE_LOCK SET LOCK_TIME = $timestamp WHERE LOCK_KEY = $key AND COMMENT = $node")
+        case Some((Some(comment), _)) if comment == node =>
+          ExclusiveLocks.update(_.lockTime -> timestamp).filter(t => (t.lockKey eq key) && (t.comment eq node)).execute(conn)
           true
         // Timeout
         case Some((_, lockTime)) if lockTime < System.currentTimeMillis - timeout =>
           log.info(s"Lock $key has been timeout")
           try {
-            db.update(sql"UPDATE EXCLUSIVE_LOCK SET COMMENT = $node, LOCK_TIME = $timestamp WHERE LOCK_KEY = $key")
+            ExclusiveLocks.update(t => (t.comment -> node) ~ (t.lockTime -> timestamp)).filter(_.lockKey eq key).execute(conn)
             true
           } catch {
             case e: Exception =>
@@ -35,7 +34,7 @@ object ControllerLock {
         case Some(_) => false
         // Possible to get a lock
         case None => try {
-          db.update(sql"INSERT INTO EXCLUSIVE_LOCK (LOCK_KEY, COMMENT, LOCK_TIME) VALUES ($key, $node, $timestamp)")
+          ExclusiveLocks.insert(ExclusiveLock(key, Some(node), timestamp)).execute(conn)
           true
         } catch {
           case e: Exception =>

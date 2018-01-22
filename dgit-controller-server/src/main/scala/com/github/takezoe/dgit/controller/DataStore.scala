@@ -2,181 +2,173 @@ package com.github.takezoe.dgit.controller
 
 import com.github.takezoe.resty.HttpClientSupport
 import org.slf4j.LoggerFactory
-import com.github.takezoe.scala.jdbc._
+import com.github.takezoe.tranquil._
+import com.github.takezoe.tranquil.Dialect.mysql
+import models._
 
 class DataStore extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(getClass)
   implicit override val httpClientConfig = Config.httpClientConfig
 
-  def existNode(nodeUrl: String): Boolean = Database.withDB { db =>
-    val count = db.selectFirst(sql"SELECT COUNT(*) AS COUNT FROM NODE WHERE NODE_URL = $nodeUrl")(_.getInt("COUNT"))
+  def existNode(nodeUrl: String): Boolean = Database.withConnection { conn =>
+    val count = Nodes.filter(_.nodeUrl eq nodeUrl).count(conn)
 
     count match {
-      case Some(i) if i > 0 => true
+      case i if i > 0 => true
       case _ => false
     }
   }
 
-  def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[JoinNodeRepository], replica: Int): Unit = Database.withDB { db =>
-    log.info(s"Add new node: $nodeUrl")
+  def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[APIController.JoinNodeRepository], replica: Int): Unit =
+    Database.withConnection { conn =>
+      log.info(s"Add new node: $nodeUrl")
 
-    db.transaction {
-      val timestamp = System.currentTimeMillis
-      db.update(sql"INSERT INTO NODE (NODE_URL, LAST_UPDATE_TIME, DISK_USAGE) VALUES ($nodeUrl, $timestamp, $diskUsage)")
-    }
+      Database.withTransaction(conn) {
+        Nodes.insert(Node(nodeUrl, System.currentTimeMillis, diskUsage)).execute(conn)
+      }
 
-    repos.foreach { repo =>
-      RepositoryLock.execute(repo.name, "add node"){
-        db.transaction {
-          val repository = getRepositoryStatus(repo.name)
-
-          repository match  {
-            case Some(x) if x.timestamp == repo.timestamp && x.nodes.size < replica =>
-              if(x.primaryNode.isEmpty){
-                db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = ${repo.name}")
-              }
-              db.update(sql"INSERT INTO NODE_REPOSITORY (NODE_URL, REPOSITORY_NAME) VALUES ($nodeUrl, ${repo.name})")
-            case _ =>
-              try {
-                httpDelete(s"$nodeUrl/api/repos/${repo.name}") // TODO Check left?
-              } catch {
-                case e: Exception => log.error(s"Failed to delete repository ${repo.name} from $nodeUrl", e)
-              }
+      repos.foreach { repo =>
+        RepositoryLock.execute(repo.name, "add node"){
+          Database.withTransaction(conn){
+            getRepositoryStatus(repo.name) match  {
+              case Some(x) if x.timestamp == repo.timestamp && x.nodes.size < replica =>
+                if(x.primaryNode.isEmpty){
+                  Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repo.name).execute(conn)
+                }
+                NodeRepositories.insert(NodeRepository(nodeUrl, repo.name)).execute(conn)
+              case _ =>
+                try {
+                  httpDelete(s"$nodeUrl/api/repos/${repo.name}") // TODO Check left?
+                } catch {
+                  case e: Exception => log.error(s"Failed to delete repository ${repo.name} from $nodeUrl", e)
+                }
+            }
           }
         }
       }
     }
-  }
 
-  def updateNodeStatus(nodeUrl: String, diskUsage: Double): Unit = Database.withDB { db =>
-    db.transaction {
-      val timestamp = System.currentTimeMillis
-      db.update(sql"UPDATE NODE SET LAST_UPDATE_TIME = $timestamp, DISK_USAGE = $diskUsage WHERE NODE_URL = $nodeUrl")
+  def updateNodeStatus(nodeUrl: String, diskUsage: Double): Unit = Database.withConnection { conn =>
+    Database.withTransaction(conn){
+      Nodes
+        .update(t => (t.lastUpdateTime -> System.currentTimeMillis) ~ (t.diskUsage -> diskUsage))
+        .filter(_.nodeUrl eq nodeUrl)
+        .execute(conn)
     }
   }
 
-  def removeNode(nodeUrl: String): Unit = Database.withDB { db =>
+  def removeNode(nodeUrl: String): Unit = Database.withConnection { conn =>
     log.info(s"Remove node: $nodeUrl")
-
-    val repos = db.select(sql"SELECT REPOSITORY_NAME FROM REPOSITORY WHERE PRIMARY_NODE = $nodeUrl ") { rs =>
-      rs.getString("REPOSITORY_NAME")
-    }
+    val repos = Repositories.filter(_.primaryNode eq nodeUrl).map(_.repositoryName).list(conn)
 
     repos.foreach { repositoryName =>
       RepositoryLock.execute(repositoryName, "remove node"){
-        db.transaction {
-          val nextPrimaryNodeUrl = db.selectFirst[String](sql"""
-            SELECT NODE_URL FROM NODE_REPOSITORY
-            WHERE NODE_URL <> $nodeUrl AND REPOSITORY_NAME = $repositoryName
-          """)(_.getString("NODE_URL"))
+        Database.withTransaction(conn){
+          val nextPrimaryNodeUrl = NodeRepositories.filter { t =>
+            (t.nodeUrl ne nodeUrl) && (t.repositoryName eq repositoryName)
+          }.map(_.nodeUrl).firstOption(conn)
 
           nextPrimaryNodeUrl match {
             case Some(nodeUrl) =>
-              db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = $repositoryName")
+              Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repositoryName).execute(conn)
             case None =>
-              db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL WHERE REPOSITORY_NAME = $repositoryName")
+              Repositories.update(_.primaryNode asNull).filter(_.repositoryName eq repositoryName).execute(conn)
               log.error(s"All nodes for $repositoryName has been retired.")
           }
 
-          db.update(sql"DELETE FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
+          NodeRepositories.delete().filter(t => (t.nodeUrl eq nodeUrl) && (t.repositoryName eq repositoryName)).execute(conn)
         }
       }
     }
 
-    db.transaction {
-      db.update(sql"DELETE FROM NODE")
+    Database.withTransaction(conn){
+      Nodes.delete().filter(_.nodeUrl eq nodeUrl).execute(conn)
     }
   }
 
-  def allNodes(): Seq[(String, NodeStatus)] = Database.withDB { db =>
-    db.select(sql"SELECT NODE_URL, LAST_UPDATE_TIME, DISK_USAGE FROM NODE"){ rs =>
-      val nodeUrl   = rs.getString("NODE_URL")
-      val timestamp = rs.getLong("LAST_UPDATE_TIME")
-      val diskUsage = rs.getDouble("DISK_USAGE")
-      val repos     = db.select(
-        sql"SELECT REPOSITORY_NAME FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl"
-      ){ rs => rs.getString("REPOSITORY_NAME") }
-
-      (nodeUrl, NodeStatus(timestamp, diskUsage, repos))
-    }
+  def allNodes(): Seq[(String, NodeStatus)] = Database.withConnection { conn =>
+    Nodes
+      .leftJoin(NodeRepositories){ case node ~ nodeRepository => node.nodeUrl eq nodeRepository.nodeUrl }
+      .list(conn)
+      .groupBy { case node ~ _ => node.nodeUrl }
+      .map { case (nodeUrl, seq) =>
+        val node = seq.head._1
+        val repos = if(seq.head._2.isEmpty) Nil else seq.map(_._2.map(_.repositoryName).get)
+        (nodeUrl, NodeStatus(node.lastUpdateTime, node.diskUsage, repos))
+      }
+      .toSeq
   }
 
   /**
    * NOTE: This method must be used in the repository lock.
    */
-  def updateRepositoryTimestamp(repositoryName: String, timestamp: Long): Unit = Database.withDB { db =>
-    db.transaction {
-      db.update(sql"UPDATE REPOSITORY SET LAST_UPDATE_TIME = $timestamp WHERE REPOSITORY_NAME = $repositoryName")
+  def updateRepositoryTimestamp(repositoryName: String, timestamp: Long): Unit = Database.withConnection { conn =>
+    Database.withTransaction(conn){
+      Repositories.update(_.lastUpdateTime -> timestamp).filter(_.repositoryName eq repositoryName).execute(conn)
     }
   }
 
-  def deleteRepository(nodeUrl: String, repositoryName: String): Unit = Database.withDB { db =>
-    db.transaction {
-      db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL WHERE PRIMARY_NODE = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
-      db.update(sql"DELETE FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
+  def deleteRepository(nodeUrl: String, repositoryName: String): Unit = Database.withConnection { conn =>
+    Database.withTransaction(conn){
+      Repositories.update(_.primaryNode asNull).filter(_.repositoryName eq repositoryName).execute(conn)
+      NodeRepositories.delete().filter(t => (t.nodeUrl eq nodeUrl) && (t.repositoryName eq repositoryName)).execute(conn)
     }
   }
 
-
-  def deleteRepository(repositoryName: String): Unit = Database.withDB { db =>
-    db.transaction {
-      db.update(sql"DELETE FROM REPOSITORY WHERE REPOSITORY_NAME = $repositoryName")
+  def deleteRepository(repositoryName: String): Unit = Database.withConnection { conn =>
+    Database.withTransaction(conn){
+      Repositories.delete().filter(_.repositoryName eq repositoryName).execute(conn)
     }
   }
 
-  def insertRepository(repositoryName: String): Long = Database.withDB { db =>
-    db.transaction {
-      val timestamp = System.currentTimeMillis
-      db.update(sql"INSERT INTO REPOSITORY (REPOSITORY_NAME, PRIMARY_NODE, LAST_UPDATE_TIME) VALUES ($repositoryName, NULL, $timestamp)")
+  def insertRepository(repositoryName: String): Long = Database.withConnection { conn =>
+    Database.withTransaction(conn){
+      Repositories.insert(Repository(repositoryName, None, System.currentTimeMillis)).execute(conn)
     }
   }
 
-  def insertNodeRepository(nodeUrl: String, repositoryName: String): Unit = Database.withDB { db =>
-    db.transaction {
+  def insertNodeRepository(nodeUrl: String, repositoryName: String): Unit = Database.withConnection { conn =>
+    Database.withTransaction(conn){
       if(getRepositoryStatus(repositoryName).map(_.primaryNode.isEmpty).getOrElse(false)){
-        db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = $repositoryName")
+        Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repositoryName).execute(conn)
       }
-      db.update(sql"DELETE FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName")
-      db.update(sql"INSERT INTO NODE_REPOSITORY (NODE_URL, REPOSITORY_NAME) VALUES ($nodeUrl, $repositoryName)")
+      NodeRepositories.delete().filter(_.repositoryName eq repositoryName).execute(conn)
+      NodeRepositories.insert(NodeRepository(nodeUrl, repositoryName)).execute(conn)
     }
   }
 
-  def getRepositoryStatus(repositoryName: String): Option[Repository] = Database.withDB { db =>
-    val repos = db.selectFirst(sql"SELECT REPOSITORY_NAME, PRIMARY_NODE, LAST_UPDATE_TIME FROM REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
-      (rs.getString("REPOSITORY_NAME"), rs.getString("PRIMARY_NODE"), rs.getLong("LAST_UPDATE_TIME"))
-    }
-    repos.map { case (repositoryName, primaryNode, timestamp) =>
-      val nodes = db.select(sql"SELECT NODE_URL FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
-        rs.getString("NODE_URL")
-      }
-      Repository(repositoryName, Option(primaryNode), timestamp, nodes)
+  def getRepositoryStatus(repositoryName: String): Option[RepositoryInfo] = Database.withConnection { conn =>
+    val repos = Repositories.filter(_.repositoryName eq repositoryName).firstOption(conn)
+
+    repos.map { repo =>
+      val nodes = NodeRepositories.filter(_.repositoryName eq repositoryName).map(_.nodeUrl).list(conn)
+      RepositoryInfo(repositoryName, repo.primaryNode, repo.lastUpdateTime, nodes)
     }
   }
 
-  def allRepositories(): Seq[Repository] = Database.withDB { db =>
-    val repos = db.select(sql"SELECT REPOSITORY_NAME, PRIMARY_NODE, LAST_UPDATE_TIME FROM REPOSITORY"){ rs =>
-      (rs.getString("REPOSITORY_NAME"), rs.getString("PRIMARY_NODE"), rs.getLong("LAST_UPDATE_TIME"))
-    }
-    repos.map { case (repositoryName, primaryNode, timestamp) =>
-      val nodes = db.select(sql"SELECT NODE_URL FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName"){ rs =>
-        rs.getString("NODE_URL")
+  def allRepositories(): Seq[RepositoryInfo] = Database.withConnection { conn =>
+    Repositories
+      .leftJoin(NodeRepositories){ case repo ~ node => repo.repositoryName eq node.repositoryName }
+      .list(conn)
+      .groupBy { case repo ~ node => repo.repositoryName }
+      .map { case (repositoryName, seq) =>
+        val repo = seq.head._1
+        val nodes = if(seq.head._2.isEmpty) Nil else seq.map(_._2.map(_.nodeUrl).get)
+        RepositoryInfo(repositoryName, repo.primaryNode, repo.lastUpdateTime, nodes)
       }
-      Repository(repositoryName, Option(primaryNode), timestamp, nodes)
-    }
+      .toSeq
   }
 
-  def getUrlOfAvailableNode(repositoryName: String): Option[String] = Database.withDB { db =>
-    db.selectFirst(sql"""
-      SELECT NODE_URL FROM NODE WHERE NODE_URL NOT IN (
-        SELECT NODE_URL FROM NODE_REPOSITORY WHERE REPOSITORY_NAME = $repositoryName
-      )
-    """){ rs => rs.getString("NODE_URL") }
+  def getUrlOfAvailableNode(repositoryName: String): Option[String] = Database.withConnection { conn =>
+    Nodes.filter(_.nodeUrl notIn (
+      NodeRepositories.filter(_.repositoryName eq repositoryName).map(_.nodeUrl)
+    )).map(_.nodeUrl).firstOption(conn)
   }
 
 }
 
-case class Repository(name: String, primaryNode: Option[String], timestamp: Long, nodes: Seq[String])
+case class RepositoryInfo(name: String, primaryNode: Option[String], timestamp: Long, nodes: Seq[String])
 case class RepositoryNode(nodeUrl: String, status: String)
 
 case class NodeStatus(timestamp: Long, diskUsage: Double, repos: Seq[String])

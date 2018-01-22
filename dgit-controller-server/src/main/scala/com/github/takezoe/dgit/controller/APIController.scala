@@ -2,6 +2,7 @@ package com.github.takezoe.dgit.controller
 
 import com.github.takezoe.resty._
 import org.slf4j.LoggerFactory
+import APIController._
 
 class APIController(config: Config, dataStore: DataStore) extends HttpClientSupport {
 
@@ -25,7 +26,7 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
   }
 
   @Action(method = "GET", path = "/api/repos")
-  def listRepositories(): Seq[Repository] = {
+  def listRepositories(): Seq[RepositoryInfo] = {
     dataStore.allRepositories()
   }
 
@@ -93,9 +94,11 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
 
 }
 
-case class JoinNodeRequest(url: String, diskUsage: Double, repos: Seq[JoinNodeRepository])
-case class JoinNodeRepository(name: String, timestamp: Long)
+object APIController {
+  case class JoinNodeRequest(url: String, diskUsage: Double, repos: Seq[JoinNodeRepository])
+  case class JoinNodeRepository(name: String, timestamp: Long)
 
-case class Node(url: String, diskUsage: Double, repos: Seq[String])
-case class NodeRepository(name: String, status: String)
+  case class Node(url: String, diskUsage: Double, repos: Seq[String])
+  case class NodeRepositoryInfo(name: String, status: String)
+}
 
