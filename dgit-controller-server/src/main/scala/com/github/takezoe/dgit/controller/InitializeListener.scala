@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 import io.github.gitbucket.solidbase.migration.LiquibaseMigration
 import io.github.gitbucket.solidbase.model.{Module, Version}
 import liquibase.database.core._
-import com.github.takezoe.scala.jdbc._
+import models._
 import syntax._
 
 @WebListener
@@ -37,22 +37,14 @@ class InitializeListener extends ServletContextListener {
     // Initialize the node status db
     Database.initializeDataSource(config.database)
 
-    Database.withConnection { implicit conn =>
-      defining(DB(conn)){ db =>
-//        db.update(sql"DROP TABLE IF EXISTS VERSIONS")
-//        db.update(sql"DROP TABLE IF EXISTS LOCK")
-//        db.update(sql"DROP TABLE IF EXISTS NODE_REPOSITORY")
-//        db.update(sql"DROP TABLE IF EXISTS REPOSITORY")
-//        db.update(sql"DROP TABLE IF EXISTS NODE")
-
-        if (checkTableExist()) {
-          if(ControllerLock.runForMaster("**master**", config.url)) {
-            db.transaction {
-              db.update(sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL")
-              db.update(sql"DELETE FROM NODE_REPOSITORY")
-              db.update(sql"DELETE FROM NODE")
-              db.update(sql"DELETE FROM EXCLUSIVE_LOCK")
-            }
+    Database.withConnection { conn =>
+      if (checkTableExist(conn)) {
+        if(ControllerLock.runForMaster("**master**", config.url)) {
+          Database.withTransaction(conn){
+            Repositories.update(_.primaryNode asNull).execute(conn)
+            NodeRepositories.delete().execute(conn)
+            Nodes.delete().execute(conn)
+            ExclusiveLocks.delete().execute(conn)
           }
         }
       }
@@ -85,7 +77,7 @@ class InitializeListener extends ServletContextListener {
     }
   }
 
-  protected def checkTableExist()(implicit conn: Connection): Boolean = {
+  protected def checkTableExist(conn: Connection): Boolean = {
     using(conn.getMetaData().getTables(null, null, "%", Array[String]("TABLE"))){ rs =>
       while(rs.next()){
         val tableName = rs.getString("TABLE_NAME")

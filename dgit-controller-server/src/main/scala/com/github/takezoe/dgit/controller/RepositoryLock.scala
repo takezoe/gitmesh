@@ -1,7 +1,11 @@
 package com.github.takezoe.dgit.controller
 
-import com.github.takezoe.scala.jdbc._
+import java.sql.Connection
+
 import org.slf4j.LoggerFactory
+import models._
+import com.github.takezoe.tranquil._
+import com.github.takezoe.tranquil.Dialect.mysql
 
 /**
  * Offers the locking mechanism for a repository.
@@ -13,24 +17,23 @@ object RepositoryLock {
 
   private val log = LoggerFactory.getLogger(RepositoryLock.getClass)
 
-  def execute[T](repositoryName: String, comment: String)(action: => T): T = Database.withDB { db =>
-    _execute(db, repositoryName, comment, 0)(action)
+  def execute[T](repositoryName: String, comment: String)(action: => T): T = Database.withConnection { conn =>
+    _execute(conn, repositoryName, comment, 0)(action)
   }
 
-  private def _execute[T](db: DB, repositoryName: String, comment: String, retry: Int)(action: => T): T = {
+  private def _execute[T](conn: Connection, repositoryName: String, comment: String, retry: Int)(action: => T): T = {
     try {
       try {
-        db.transaction {
-          val lock = db.selectFirst(
-            sql"SELECT COMMENT, LOCK_TIME AS COUNT FROM EXCLUSIVE_LOCK WHERE LOCK_KEY = $repositoryName"
-          ){ rs => (rs.getString("COMMENT"), rs.getLong("LOCK_TIME")) }
+        Database.withTransaction(conn){
+          val lock = ExclusiveLocks.filter(_.lockKey eq repositoryName).map(t => t.comment ~ t.lockTime).firstOption(conn)
 
           lock.foreach { case (comment, lockTime) =>
-            throw new RepositoryLockException(s"$repositoryName is already locked since ${new java.util.Date(lockTime).toString}: $comment")
+            throw new RepositoryLockException(
+              s"$repositoryName is already locked since ${new java.util.Date(lockTime).toString}: ${comment.getOrElse("")}"
+            )
           }
 
-          val timestamp = System.currentTimeMillis
-          db.update(sql"INSERT INTO EXCLUSIVE_LOCK (LOCK_KEY, COMMENT, LOCK_TIME) VALUES ($repositoryName, $comment, $timestamp)")
+          ExclusiveLocks.insert(ExclusiveLock(repositoryName, if(comment.isEmpty) Some(comment) else None, System.currentTimeMillis))
         }
 
         try {
@@ -39,8 +42,8 @@ object RepositoryLock {
           case e: Exception => throw new ActionException(e)
         }
       } finally {
-        db.transaction {
-          db.update(sql"DELETE FROM EXCLUSIVE_LOCK WHERE LOCK_KEY = $repositoryName")
+        Database.withTransaction(conn){
+          ExclusiveLocks.delete().filter(_.lockKey eq repositoryName).execute(conn)
         }
       }
     } catch {
@@ -48,7 +51,7 @@ object RepositoryLock {
       case _: Exception if retry < 10 =>
         Thread.sleep(1000)
         log.info(s"Retry to get lock for $repositoryName")
-        _execute(db, repositoryName, comment, retry + 1)(action)
+        _execute(conn, repositoryName, comment, retry + 1)(action)
     }
   }
 
