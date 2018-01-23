@@ -9,7 +9,7 @@ libraryDependencies ++= Seq(
   //"org.eclipse.jgit"           % "org.eclipse.jgit.archive"     % "4.9.2.201712150930-r",
   "com.github.takezoe"        %% "resty"                        % "0.0.16",
   //"com.github.takezoe"        %% "scala-jdbc"                   % "1.0.5",
-  "com.github.takezoe"        %% "tranquil"                     % "1.0.1-SNAPSHOT",
+  "com.github.takezoe"        %% "tranquil"                     % "1.0.1",
   "com.zaxxer"                 % "HikariCP"                     % "2.7.4",
   "io.github.gitbucket"        % "solidbase"                    % "1.0.2",
   "org.postgresql"             % "postgresql"                   % "42.1.4",
