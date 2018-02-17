@@ -1,4 +1,4 @@
-distributed-git-server
+gitmesh
 ========
 
 ## What's this?
@@ -7,11 +7,11 @@ This is an experimental project to make a distributed git server cluster. The ma
 
 The distributed gitserver cluster consists of following two kinds of servers:
 
-- [Controller server](https://github.com/takezoe/distributed-git-server/tree/master/dgit-controller-server)
+- [Controller server](https://github.com/takezoe/gitmesh/tree/master/gitmesh-controller-server)
 
   This is a front server of the cluster. It manages repository servers and proxy requests from git clients to appropriate repository servers. We can make redundant it by setup multiple instances with a load balancer. 
 
-- [Repository server](https://github.com/takezoe/distributed-git-server/tree/master/dgit-repository-server)
+- [Repository server](https://github.com/takezoe/gitmesh/tree/master/gitmesh-repository-server)
 
   This is a storage server of the cluster. Git repositories are located on this kind of servers actually. We can add any number of repository server instances to the cluster.
 
@@ -21,7 +21,7 @@ This project is still under development phase, but if you are interested, please
 
 ## Setup
 
-You can run distributed-git-server only from source code for now. This guide shows how to run the cluster with minimum configuration (one controller server and one repository server on a single machine).
+You can setup gitmesh only from source code for now. This guide shows how to run the cluster with minimum configuration (one controller server and one repository server on a single machine).
 
 ### Prerequisites
 
@@ -38,10 +38,10 @@ $ docker run --name mysql -e MYSQL_ROOT_PASSWORD=mysql MYSQL_DATABASE=dgit -d -p
 
 ### Start the controller server
 
-Modify `dgit-controller-server/src/main/resources/application.conf` for your environment, and run the controller server as following:
+Modify `gitmesh-controller-server/src/main/resources/application.conf` for your environment, and run the controller server as following:
 
 ```
-$ cd dgit-controller-server
+$ cd gitmesh-controller-server
 $ sbt ~jetty:start
 ```
 
@@ -49,10 +49,10 @@ The controller server is started on port 8080 in default. Tables are created aut
 
 ### Start the repository server
 
-Modify `dgit-repository-server/src/main/resources/application.conf` for your environment, and run the repository server as following:
+Modify `gitmesh-repository-server/src/main/resources/application.conf` for your environment, and run the repository server as following:
 
 ```
-$ cd dgit-repository-server
+$ cd gitmesh-repository-server
 $ sbt ~jetty:start
 ```
 
