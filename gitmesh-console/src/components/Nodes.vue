@@ -1,8 +1,9 @@
 <template>
-  <div class="hello">
+  <div>
+    <!--
     <h1>gitmesh cluster status</h1>
-
-    <div class="text-right mb-2">
+    -->
+    <div class="text-right mt-2 mb-2">
       <button class="btn btn-success" v-on:click="refresh">Refresh</button>
     </div>
 
@@ -28,7 +29,7 @@ import Vue from 'vue'
 import axios from 'axios'
 
 export default {
-  name: 'HelloWorld',
+  name: 'Nodes',
   data () {
     return {
       nodes: []

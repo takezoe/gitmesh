@@ -62,7 +62,7 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
   @Action(method = "POST", path = "/api/repos/{repositoryName}")
   def createRepository(repositoryName: String, response: HttpServletResponse): ActionResult[Unit] = {
     response.setHeader("Access-Control-Allow-Origin", "*")
-    
+
     val repo = dataStore.getRepositoryStatus(repositoryName)
 
     if(repo.nonEmpty){
