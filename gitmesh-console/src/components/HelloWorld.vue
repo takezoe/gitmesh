@@ -2,6 +2,10 @@
   <div class="hello">
     <h1>gitmesh cluster status</h1>
 
+    <div class="text-right mb-2">
+      <button class="btn btn-success" v-on:click="refresh">Refresh</button>
+    </div>
+
     <table class="table table-border table-hover">
       <tr>
         <th>URL</th>
@@ -32,6 +36,11 @@ export default {
   },
   created: function () {
     fetchNodesInfo(this)
+  },
+  methods: {
+    refresh: function () {
+      fetchNodesInfo(this)
+    }
   }
 }
 
