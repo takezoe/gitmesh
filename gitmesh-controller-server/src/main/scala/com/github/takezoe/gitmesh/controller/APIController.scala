@@ -1,5 +1,7 @@
 package com.github.takezoe.gitmesh.controller
 
+import javax.servlet.http.HttpServletResponse
+
 import com.github.takezoe.resty._
 import org.slf4j.LoggerFactory
 import APIController._
@@ -19,7 +21,8 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
   }
 
   @Action(method = "GET", path = "/api/nodes")
-  def listNodes(): Seq[Node] = {
+  def listNodes(response: HttpServletResponse): Seq[Node] = {
+    response.setHeader("Access-Control-Allow-Origin", "*")
     dataStore.allNodes().map { case (node, status) =>
       Node(node, status.diskUsage, status.repos)
     }

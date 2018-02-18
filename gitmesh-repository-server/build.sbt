@@ -23,4 +23,4 @@ libraryDependencies ++= Seq(
 
 enablePlugins(JettyPlugin)
 
-containerPort := 8081
+containerPort := 8082
