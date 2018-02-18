@@ -12,7 +12,9 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
   implicit override val httpClientConfig = Config.httpClientConfig
 
   @Action(method = "POST", path = "/api/nodes/notify")
-  def notifyFromNode(node: JoinNodeRequest): Unit = {
+  def notifyFromNode(node: JoinNodeRequest, response: HttpServletResponse): Unit = {
+    response.setHeader("Access-Control-Allow-Origin", "*")
+
     if(dataStore.existNode(node.url)){
       dataStore.updateNodeStatus(node.url, node.diskUsage)
     } else {
@@ -23,18 +25,23 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
   @Action(method = "GET", path = "/api/nodes")
   def listNodes(response: HttpServletResponse): Seq[Node] = {
     response.setHeader("Access-Control-Allow-Origin", "*")
+
     dataStore.allNodes().map { case (node, status) =>
       Node(node, status.diskUsage, status.repos)
     }
   }
 
   @Action(method = "GET", path = "/api/repos")
-  def listRepositories(): Seq[RepositoryInfo] = {
+  def listRepositories(response: HttpServletResponse): Seq[RepositoryInfo] = {
+    response.setHeader("Access-Control-Allow-Origin", "*")
+
     dataStore.allRepositories()
   }
 
   @Action(method = "DELETE", path = "/api/repos/{repositoryName}")
-  def deleteRepository(repositoryName: String): Unit = {
+  def deleteRepository(repositoryName: String, response: HttpServletResponse): Unit = {
+    response.setHeader("Access-Control-Allow-Origin", "*")
+
     dataStore
       .getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
       .foreach { nodeUrl =>
@@ -53,7 +60,9 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
   }
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}")
-  def createRepository(repositoryName: String): ActionResult[Unit] = {
+  def createRepository(repositoryName: String, response: HttpServletResponse): ActionResult[Unit] = {
+    response.setHeader("Access-Control-Allow-Origin", "*")
+    
     val repo = dataStore.getRepositoryStatus(repositoryName)
 
     if(repo.nonEmpty){
