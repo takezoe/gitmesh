@@ -17,8 +17,7 @@
         <form class="form-inline">
           <input id="controllerUrl" class="form-control mr-sm-2" type="text" placeholder="Controller URL" size="40" v-model="editingUrl" :disabled="!editing" autocomplete="off">
           <button class="btn btn-outline-success" type="submit" v-on:click="edit" v-if="!editing">Edit</button>
-          <button class="btn btn-primary" type="submit" v-on:click="connect" v-if="editing">Connect</button>
-          <button class="btn btn-secondary ml-1" type="submit" v-on:click="cancel" v-if="editing">Cancel</button>
+          <button class="btn btn-outline-success" type="submit" v-on:click="connect" v-if="editing">Connect</button>
         </form>
       </div>
     </nav>
@@ -34,9 +33,13 @@ import Vue from 'vue'
 export default {
   name: 'App',
   data () {
+    let controllerUrl = localStorage.getItem('gitmesh.controllerUrl')
+    if (controllerUrl === '' || controllerUrl === null) {
+      controllerUrl = 'http://localhost:8081'
+    }
     return {
-      controllerUrl: 'http://localhost:8081',
-      editingUrl: 'http://localhost:8081',
+      controllerUrl: controllerUrl,
+      editingUrl: controllerUrl,
       editing: false
     }
   },
@@ -48,24 +51,8 @@ export default {
     connect: function () {
       Vue.set(this, 'controllerUrl', this.$data.editingUrl)
       Vue.set(this, 'editing', false)
-    },
-    cancel: function () {
-      Vue.set(this, 'editingUrl', this.$data.controllerUrl)
-      Vue.set(this, 'editing', false)
+      localStorage.setItem('gitmesh.controllerUrl', this.$data.editingUrl)
     }
   }
 }
 </script>
-
-<style>
-/*
-#app {
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
-}
-*/
-</style>
