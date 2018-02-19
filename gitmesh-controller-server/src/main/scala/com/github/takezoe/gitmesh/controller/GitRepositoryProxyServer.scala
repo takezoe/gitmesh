@@ -30,7 +30,7 @@ class GitRepositoryProxyServer extends HttpServlet {
       val nodeUrls = dataStore.getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
 
       if (nodeUrls.nonEmpty) {
-        val tmpFile = File.createTempFile("dgit", "tmpfile")
+        val tmpFile = File.createTempFile("gitmesh", "tmpfile")
         try {
           using(req.getInputStream, new FileOutputStream(tmpFile)) { (in, out) =>
             IOUtils.copy(in, out)
@@ -44,7 +44,7 @@ class GitRepositoryProxyServer extends HttpServlet {
             req.getHeaderNames.asScala.foreach { name =>
               builder.addHeader(name, req.getHeader(name))
             }
-            builder.addHeader("DGIT-UPDATE-ID", timestamp.toString)
+            builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString)
             builder.post(RequestBody.create(MediaType.parse(req.getContentType), tmpFile))
 
             val request = builder.build()

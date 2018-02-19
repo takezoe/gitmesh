@@ -85,7 +85,7 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
               httpPost(
                 s"$nodeUrl/api/repos/${repositoryName}",
                 Map.empty,
-                builder => { builder.addHeader("DGIT-UPDATE-ID", timestamp.toString) }
+                builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
               )
               // Insert to NODE_REPOSITORY
               dataStore.insertNodeRepository(nodeUrl, repositoryName)

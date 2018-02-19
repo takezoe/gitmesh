@@ -16,7 +16,7 @@ class GitRepositoryServlet extends GitServlet {
   override def init(config: ServletConfig): Unit = {
     defining(Config.load()){ config =>
       val root: File = new File(config.directory)
-      setRepositoryResolver(new DGitFileResolver[HttpServletRequest](root, true))
+      setRepositoryResolver(new GitMeshFileResolver[HttpServletRequest](root, true))
     }
     super.init(config)
   }
@@ -24,7 +24,7 @@ class GitRepositoryServlet extends GitServlet {
   private val RepositoryNamePattern = ".+/(.+?)\\.git.*".r
 
   override def service(req: HttpServletRequest, res: HttpServletResponse): Unit = {
-    val timestamp = req.getHeader("DGIT-UPDATE-ID")
+    val timestamp = req.getHeader("GITMESH-UPDATE-ID")
 
     if(timestamp != null){
       req.getRequestURI match {
@@ -40,7 +40,7 @@ class GitRepositoryServlet extends GitServlet {
 
 }
 
-class DGitFileResolver[T](basePath: File, exposeAll: Boolean) extends FileResolver[T](basePath, exposeAll) {
+class GitMeshFileResolver[T](basePath: File, exposeAll: Boolean) extends FileResolver[T](basePath, exposeAll) {
   override def open(req: T, name: String) = {
     super.open(req, name.replaceFirst("\\.git$", ""))
   }

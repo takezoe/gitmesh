@@ -54,7 +54,7 @@ class InitializeListener extends ServletContextListener {
         conn,
         Thread.currentThread.getContextClassLoader,
         liquibaseDriver(config.database.url),
-        DGitMigrationModule
+        GitMeshMigrationModule
       )
       conn.commit()
     }
@@ -91,8 +91,8 @@ class InitializeListener extends ServletContextListener {
 
 }
 
-object DGitMigrationModule extends Module("dgit",
-  new Version("1.0.0", new LiquibaseMigration("update/dgit-database-1.0.0.xml"))
+object GitMeshMigrationModule extends Module("gitmesh",
+  new Version("1.0.0", new LiquibaseMigration("update/gitmesh-database-1.0.0.xml"))
 )
 
 class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Actor with HttpClientSupport {
@@ -137,7 +137,7 @@ class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Act
           httpPutJson(
             s"$nodeUrl/api/repos/${repositoryName}",
             CloneRequest(primaryNode),
-            builder => { builder.addHeader("DGIT-UPDATE-ID", timestamp.toString) }
+            builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
           )
           // Insert record
           dataStore.insertNodeRepository(nodeUrl, repositoryName)

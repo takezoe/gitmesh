@@ -29,19 +29,19 @@ object Config {
   def load(): Config = {
     implicit val c = ConfigFactory.load()
     Config(
-      url          = c.getString("dgit.url"),
-      replica      = c.getInt("dgit.replica"),
-      maxDiskUsage = c.getDouble("dgit.maxDiskUsage"),
+      url          = c.getString("gitmesh.url"),
+      replica      = c.getInt("gitmesh.replica"),
+      maxDiskUsage = c.getDouble("gitmesh.maxDiskUsage"),
       database     = DatabaseConfig(
-        driver            = c.getString("dgit.database.driver"),
-        url               = c.getString("dgit.database.url"),
-        user              = c.getString("dgit.database.user"),
-        password          = c.getString("dgit.database.password"),
-        connectionTimeout = getOptionValue("dgit.database.connectionTimeout", c.getLong),
-        idleTimeout       = getOptionValue("dgit.database.idleTimeout", c.getLong),
-        maxLifetime       = getOptionValue("dgit.database.maxLifetime", c.getLong),
-        minimumIdle       = getOptionValue("dgit.database.minimumIdle", c.getInt),
-        maximumPoolSize   = getOptionValue("dgit.database.maximumPoolSize", c.getInt)
+        driver            = c.getString("gitmesh.database.driver"),
+        url               = c.getString("dggitmeshit.database.url"),
+        user              = c.getString("gitmesh.database.user"),
+        password          = c.getString("gitmesh.database.password"),
+        connectionTimeout = getOptionValue("gitmesh.database.connectionTimeout", c.getLong),
+        idleTimeout       = getOptionValue("gitmesh.database.idleTimeout", c.getLong),
+        maxLifetime       = getOptionValue("gitmesh.database.maxLifetime", c.getLong),
+        minimumIdle       = getOptionValue("gitmesh.database.minimumIdle", c.getInt),
+        maximumPoolSize   = getOptionValue("gitmesh.database.maximumPoolSize", c.getInt)
       )
     )
   }
