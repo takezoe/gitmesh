@@ -7,11 +7,11 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav mr-auto">
-          <li class="nav-item" :class="{active: $route.path == '/nodes'}">
-            <router-link to="nodes" class="nav-link">Nodes</router-link>
-          </li>
           <li class="nav-item" :class="{active: $route.path == '/repos'}">
             <router-link to="repos" class="nav-link">Repositories</router-link>
+          </li>
+          <li class="nav-item" :class="{active: $route.path == '/nodes'}">
+            <router-link to="nodes" class="nav-link">Nodes</router-link>
           </li>
           <!--
           <li class="nav-item dropdown">

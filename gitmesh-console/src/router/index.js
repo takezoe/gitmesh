@@ -10,17 +10,17 @@ export default new Router({
     {
       path: '/',
       name: 'Index',
-      redirect: '/nodes'
-    },
-    {
-      path: '/nodes',
-      name: 'Nodes',
-      component: Nodes
+      redirect: '/repos'
     },
     {
       path: '/repos',
       name: 'Repositories',
       component: Repositories
+    },
+    {
+      path: '/nodes',
+      name: 'Nodes',
+      component: Nodes
     }
   ]
 })

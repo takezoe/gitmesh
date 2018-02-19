@@ -12,7 +12,10 @@
       <tr v-for="node in nodes" :key="node.url">
         <td>{{node.url}}</td>
         <td>
+          {{node.repos.length}}
+          <!--
           <div v-for="repo in node.repos" :key="repo">{{repo}}</div>
+          -->
         </td>
         <td>{{node.diskUsage}}</td>
       </tr>
