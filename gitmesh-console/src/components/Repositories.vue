@@ -18,7 +18,7 @@
         <td>
           <div v-for="node in repo.nodes" :key="node">
             {{node}}
-            <span v-if="node == repo.primaryNode">(Primary)</span>
+            <span class="badge badge-primary" v-if="node == repo.primaryNode">Primary</span>
           </div>
         </td>
       </tr>
