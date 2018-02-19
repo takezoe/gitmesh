@@ -1,7 +1,4 @@
 <template>
-  <!--
-  <h1>gitmesh cluster status</h1>
-  -->
   <div>
     <table class="table table-bordered mt-2">
       <tr>
@@ -11,12 +8,7 @@
       </tr>
       <tr v-for="node in nodes" :key="node.url">
         <td>{{node.url}}</td>
-        <td>
-          {{node.repos.length}}
-          <!--
-          <div v-for="repo in node.repos" :key="repo">{{repo}}</div>
-          -->
-        </td>
+        <td>{{node.repos.length}}</td>
         <td>{{node.diskUsage}}</td>
       </tr>
     </table>

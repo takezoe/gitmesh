@@ -18,8 +18,7 @@
         <td>http://localhost:8081/git/{{repo.name}}.git</td>
         <td>
           <div v-for="node in repo.nodes" :key="node">
-            {{node}}
-            <span class="badge badge-primary" v-if="node == repo.primaryNode">Primary</span>
+            {{node}} <span class="badge badge-primary" v-if="node == repo.primaryNode">Primary</span>
           </div>
         </td>
         <td class="text-center">
