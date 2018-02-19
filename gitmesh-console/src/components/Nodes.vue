@@ -1,8 +1,8 @@
 <template>
+  <!--
+  <h1>gitmesh cluster status</h1>
+  -->
   <div>
-    <!--
-    <h1>gitmesh cluster status</h1>
-    -->
     <table class="table table-border table-hover">
       <tr>
         <th>URL</th>
