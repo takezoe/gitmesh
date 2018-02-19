@@ -34,7 +34,7 @@ object Config {
       maxDiskUsage = c.getDouble("gitmesh.maxDiskUsage"),
       database     = DatabaseConfig(
         driver            = c.getString("gitmesh.database.driver"),
-        url               = c.getString("dggitmeshit.database.url"),
+        url               = c.getString("gitmesh.database.url"),
         user              = c.getString("gitmesh.database.user"),
         password          = c.getString("gitmesh.database.password"),
         connectionTimeout = getOptionValue("gitmesh.database.connectionTimeout", c.getLong),
