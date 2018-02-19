@@ -40,13 +40,11 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}/_delete")
   def deleteRepositoryByPost(repositoryName: String, response: HttpServletResponse): Unit = {
-    println("deleteRepositoryByPost: " + repositoryName) // TODO Debug
     deleteRepository(repositoryName, response)
   }
 
   @Action(method = "DELETE", path = "/api/repos/{repositoryName}")
   def deleteRepository(repositoryName: String, response: HttpServletResponse): Unit = {
-    println("deleteRepository: " + repositoryName) // TODO Debug
     response.setHeader("Access-Control-Allow-Origin", "*")
 
     dataStore
