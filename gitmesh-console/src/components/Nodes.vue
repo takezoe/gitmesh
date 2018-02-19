@@ -3,7 +3,7 @@
   <h1>gitmesh cluster status</h1>
   -->
   <div>
-    <table class="table table-border table-hover">
+    <table class="table table-bordered mt-2">
       <tr>
         <th>URL</th>
         <th>Repositories</th>

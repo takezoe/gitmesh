@@ -1,16 +1,17 @@
 <template>
   <div>
-    <div class="mt-2 mb-2">
+    <div class="mt-2">
       <form class="form-inline">
-        <input type="text" class="form-control" v-model="name" placeholder="Repository name..." size="50%" autocomplete="off" :disabled="creating"/>
-        <button class="btn btn-success ml-1" v-on:click="create" :disabled="creating">Create</button>
+        <input type="text" class="form-control" v-model="name" placeholder="Repository name..." size="50%" autocomplete="off" :disabled="connecting"/>
+        <button class="btn btn-success ml-1" v-on:click="createRepository" :disabled="connecting">Create</button>
       </form>
     </div>
-    <table class="table table-bordered table-hover">
+    <table class="table table-bordered mt-2">
       <tr>
         <th>Name</th>
         <th>URL</th>
         <th>Nodes</th>
+        <th width="100"></th>
       </tr>
       <tr v-for="repo in repos" :key="repo.name">
         <td>{{repo.name}}</td>
@@ -20,6 +21,9 @@
             {{node}}
             <span class="badge badge-primary" v-if="node == repo.primaryNode">Primary</span>
           </div>
+        </td>
+        <td class="text-center">
+          <button class="btn btn-danger btn-sm" v-on:click="deleteRepository(repo.name)" :disabled="connecting">Delete</button>
         </td>
       </tr>
     </table>
@@ -36,7 +40,7 @@ export default {
     return {
       repos: [],
       name: '',
-      creating: false
+      connecting: false
     }
   },
   created: function () {
@@ -46,9 +50,33 @@ export default {
     refresh: function () {
       fetchReposInfo(this)
     },
-    create: function () {
+    createRepository: function () {
       // TODO validation
-      createRepository(this)
+      let app = this
+      let name = app.$data.name
+      Vue.set(app, 'connecting', true)
+      axios({
+        method: 'POST',
+        url: 'http://localhost:8081/api/repos/' + name
+      }).then(function (response) {
+        Vue.set(app, 'name', '')
+        Vue.set(app, 'connecting', false)
+        fetchReposInfo(app)
+      })
+    },
+    deleteRepository: function (name) {
+      if (confirm('Delete repository "' + name + '". Are you sure?')) {
+        let app = this
+        Vue.set(app, 'connecting', true)
+        axios({
+          method: 'POST',
+          url: 'http://localhost:8081/api/repos/' + name + '/_delete'
+        }).then(function (response) {
+          // TODO wait???
+          Vue.set(app, 'connecting', false)
+          fetchReposInfo(app)
+        })
+      }
     }
   }
 }
@@ -57,19 +85,6 @@ function fetchReposInfo (app) {
   axios('http://localhost:8081/api/repos').then(function (response) {
     Vue.set(app, 'repos', response.data)
     // app.$emit('GET_AJAX_COMPLETE')
-  })
-}
-
-function createRepository (app) {
-  let name = app.$data.name
-  Vue.set(app, 'creating', true)
-  axios({
-    method: 'POST',
-    url: 'http://localhost:8081/api/repos/' + name
-  }).then(function (response) {
-    Vue.set(app, 'name', '')
-    Vue.set(app, 'creating', false)
-    fetchReposInfo(app)
   })
 }
 </script>
