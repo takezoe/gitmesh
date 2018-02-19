@@ -21,3 +21,6 @@ project/plugins/project/
 # IntelliJ specific
 .idea/
 .idea_modules/
+
+# Gitmesh data
+repos/

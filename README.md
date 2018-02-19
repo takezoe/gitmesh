@@ -33,7 +33,7 @@ You have to create an empty database before run the controller server. If you us
 
 ```
 $ docker pull mysql
-$ docker run --name mysql -e MYSQL_ROOT_PASSWORD=mysql MYSQL_DATABASE=dgit -d -p 3306:3306 mysql
+$ docker run --name mysql -e MYSQL_ROOT_PASSWORD=mysql MYSQL_DATABASE=gitmesh -d -p 3306:3306 mysql
 ```
 
 ### Start the controller server

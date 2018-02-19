@@ -31,7 +31,7 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}")
   def createRepository(repositoryName: String,
-                       @Param(from = "header", name = "DGIT-UPDATE-ID") timestamp: Long): ActionResult[Unit] = {
+                       @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): ActionResult[Unit] = {
     // Delete the repository directory if it exists
     val dir = new File(config.directory, repositoryName)
     if(dir.exists){
@@ -85,7 +85,7 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
 
   @Action(method = "PUT", path = "/api/repos/{repositoryName}")
   def cloneRepository(repositoryName: String, request: CloneRequest,
-                      @Param(from = "header", name = "DGIT-UPDATE-ID") timestamp: Long): Unit = {
+                      @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Unit = {
     val cloneUrl = s"${config.url}/git/$repositoryName.git"
     log.info(s"Synchronize repository: $repositoryName with ${cloneUrl}")
 

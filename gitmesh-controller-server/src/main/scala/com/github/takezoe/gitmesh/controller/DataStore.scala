@@ -83,6 +83,7 @@ class DataStore extends HttpClientSupport {
     }
 
     Database.withTransaction(conn){
+      NodeRepositories.delete().filter(_.nodeUrl eq nodeUrl).execute(conn)
       Nodes.delete().filter(_.nodeUrl eq nodeUrl).execute(conn)
     }
   }
@@ -133,7 +134,7 @@ class DataStore extends HttpClientSupport {
       if(getRepositoryStatus(repositoryName).map(_.primaryNode.isEmpty).getOrElse(false)){
         Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repositoryName).execute(conn)
       }
-      NodeRepositories.delete().filter(_.repositoryName eq repositoryName).execute(conn)
+      NodeRepositories.delete().filter(t => (t.nodeUrl eq nodeUrl) && (t.repositoryName eq repositoryName)).execute(conn)
       NodeRepositories.insert(NodeRepository(nodeUrl, repositoryName)).execute(conn)
     }
   }

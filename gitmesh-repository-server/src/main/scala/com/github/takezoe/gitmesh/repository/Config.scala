@@ -18,9 +18,9 @@ object Config {
   def load(): Config = {
     val c = ConfigFactory.load()
     Config(
-      url           = c.getString("dgit.url"),
-      directory     = c.getString("dgit.directory"),
-      controllerUrl = c.getStringList("dgit.controllerUrl").asScala
+      url           = c.getString("gitmesh.url"),
+      directory     = c.getString("gitmesh.directory"),
+      controllerUrl = c.getStringList("gitmesh.controllerUrl").asScala
     )
   }
 }
