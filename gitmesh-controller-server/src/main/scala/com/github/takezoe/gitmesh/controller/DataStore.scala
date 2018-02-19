@@ -39,6 +39,7 @@ class DataStore extends HttpClientSupport {
                 NodeRepositories.insert(NodeRepository(nodeUrl, repo.name)).execute(conn)
               case _ =>
                 try {
+                  println("Delete in addNewNode: " + repo.name) // TODO Debug
                   httpDelete(s"$nodeUrl/api/repos/${repo.name}") // TODO Check left?
                 } catch {
                   case e: Exception => log.error(s"Failed to delete repository ${repo.name} from $nodeUrl", e)

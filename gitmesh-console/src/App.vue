@@ -30,23 +30,46 @@
           </li>
           -->
         </ul>
-        <!--
-        <form class="form-inline my-2 my-lg-0">
-          <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search">
-          <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+        <form class="form-inline">
+          <input id="controllerUrl" class="form-control mr-sm-2" type="text" placeholder="Controller URL" size="40" v-model="editingUrl" :disabled="!editing" autocomplete="off">
+          <button class="btn btn-outline-success" type="submit" v-on:click="edit" v-if="!editing">Edit</button>
+          <button class="btn btn-primary" type="submit" v-on:click="connect" v-if="editing">Connect</button>
+          <button class="btn btn-secondary ml-1" type="submit" v-on:click="cancel" v-if="editing">Cancel</button>
         </form>
-        -->
       </div>
     </nav>
     <div class="container">
-      <router-view/>
+      <router-view :controllerUrl="controllerUrl"/>
     </div>
   </div>
 </template>
 
 <script>
+import Vue from 'vue'
+
 export default {
-  name: 'App'
+  name: 'App',
+  data () {
+    return {
+      controllerUrl: 'http://localhost:8081',
+      editingUrl: 'http://localhost:8081',
+      editing: false
+    }
+  },
+  methods: {
+    edit: function () {
+      Vue.set(this, 'editing', true)
+      // document.getElementById('controllerUrl').focus()
+    },
+    connect: function () {
+      Vue.set(this, 'controllerUrl', this.$data.editingUrl)
+      Vue.set(this, 'editing', false)
+    },
+    cancel: function () {
+      Vue.set(this, 'editingUrl', this.$data.controllerUrl)
+      Vue.set(this, 'editing', false)
+    }
+  }
 }
 </script>
 

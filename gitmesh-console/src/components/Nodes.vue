@@ -34,6 +34,12 @@ export default {
       nodes: []
     }
   },
+  props: ['controllerUrl'],
+  watch: {
+    controllerUrl: function () {
+      fetchNodesInfo(this)
+    }
+  },
   created: function () {
     fetchNodesInfo(this)
   },
@@ -45,30 +51,12 @@ export default {
 }
 
 function fetchNodesInfo (app) {
-  axios('http://localhost:8081/api/nodes').then(function (response) {
-    console.log('fetch nodes info')
-    Vue.set(app, 'nodes', response.data)
-    // setTimeout(function () { fetchNodesInfo(app) }, 5000)
-  })
+  axios(app.controllerUrl + '/api/nodes')
+    .then(function (response) {
+      Vue.set(app, 'nodes', response.data)
+    }).catch(function (error) {
+      Vue.set(app, 'nodes', [])
+      alert(error)
+    })
 }
 </script>
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-/*
-h1, h2 {
-  font-weight: normal;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
-*/
-</style>
