@@ -100,6 +100,7 @@ class DataStore extends HttpClientSupport {
         (nodeUrl, NodeStatus(node.lastUpdateTime, node.diskUsage, repos))
       }
       .toSeq
+      .sortBy(_._1)
   }
 
   /**
@@ -160,6 +161,7 @@ class DataStore extends HttpClientSupport {
         RepositoryInfo(repositoryName, repo.primaryNode, repo.lastUpdateTime, nodes)
       }
       .toSeq
+      .sortBy(_.name)
   }
 
   def getUrlOfAvailableNode(repositoryName: String): Option[String] = Database.withConnection { conn =>
