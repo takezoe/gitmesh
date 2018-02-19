@@ -3,10 +3,6 @@
     <!--
     <h1>gitmesh cluster status</h1>
     -->
-    <div class="text-right mt-2 mb-2">
-      <button class="btn btn-success" v-on:click="refresh">Refresh</button>
-    </div>
-
     <table class="table table-border table-hover">
       <tr>
         <th>URL</th>
@@ -47,8 +43,9 @@ export default {
 
 function fetchNodesInfo (app) {
   axios('http://localhost:8081/api/nodes').then(function (response) {
+    console.log('fetch nodes info')
     Vue.set(app, 'nodes', response.data)
-    app.$emit('GET_AJAX_COMPLETE')
+    // setTimeout(function () { fetchNodesInfo(app) }, 5000)
   })
 }
 </script>
