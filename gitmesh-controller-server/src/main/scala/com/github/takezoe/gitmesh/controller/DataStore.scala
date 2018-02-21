@@ -104,7 +104,7 @@ class DataStore extends HttpClientSupport {
   }
 
   /**
-   * NOTE: This method must be used in the repository lock.
+   * NOTE: This method must be used only in the repository lock.
    */
   def updateRepositoryTimestamp(repositoryName: String, timestamp: Long): Unit = Database.withConnection { conn =>
     Database.withTransaction(conn){
@@ -169,7 +169,7 @@ class DataStore extends HttpClientSupport {
   def getUrlOfAvailableNode(repositoryName: String): Option[String] = Database.withConnection { conn =>
     Nodes.filter(_.nodeUrl notIn (
       NodeRepositories.filter(_.repositoryName eq repositoryName).map(_.nodeUrl)
-    )).map(_.nodeUrl).firstOption(conn)
+    )).sortBy(_.diskUsage asc).map(_.nodeUrl).firstOption(conn)
   }
 
 }
