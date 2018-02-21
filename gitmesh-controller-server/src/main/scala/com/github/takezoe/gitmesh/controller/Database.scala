@@ -8,7 +8,7 @@ object Database {
 
   private var dataSource: HikariDataSource = null
 
-  private def createDataSource(config: DatabaseConfig): HikariDataSource = {
+  private def createDataSource(config: Config.DatabaseConfig): HikariDataSource = {
     new HikariDataSource(new HikariConfig().unsafeTap { hikariConfig =>
       hikariConfig.setDriverClassName(config.driver)
       hikariConfig.setJdbcUrl(config.url)
@@ -23,7 +23,7 @@ object Database {
     })
   }
 
-  def initializeDataSource(config: DatabaseConfig): Unit = {
+  def initializeDataSource(config: Config.DatabaseConfig): Unit = {
     dataSource = createDataSource(config)
   }
 

@@ -31,7 +31,9 @@ class InitializeListener extends ServletContextListener {
   }
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
-    val config = Config.load()
+    implicit val config = Config.load()
+    GitRepositoryProxyServer.initialize(config)
+
     val dataStore = new DataStore()
 
     // Initialize the node status db
@@ -40,7 +42,7 @@ class InitializeListener extends ServletContextListener {
     Database.withConnection { conn =>
       if (checkTableExist(conn)) {
         // Clear cluster status
-        if(ControllerLock.runForMaster("**master**", config.url)) {
+        if(ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)) {
           Database.withTransaction(conn){
             Repositories.update(_.primaryNode asNull).execute(conn)
             NodeRepositories.delete().execute(conn)
@@ -61,7 +63,7 @@ class InitializeListener extends ServletContextListener {
     }
 
     // Setup controllers
-    Resty.register(new APIController(config, dataStore))
+    Resty.register(new APIController(dataStore))
 
     // Start background jobs
     val scheduler = QuartzSchedulerExtension(system)
@@ -96,16 +98,16 @@ object GitMeshMigrationModule extends Module("gitmesh",
   new Version("1.0.0", new LiquibaseMigration("update/gitmesh-database-1.0.0.xml"))
 )
 
-class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Actor with HttpClientSupport {
+class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore) extends Actor with HttpClientSupport {
 
   private val log = Logging(context.system, this)
   implicit override val httpClientConfig = Config.httpClientConfig
 
   override def receive = {
     case _ => {
-      if(ControllerLock.runForMaster("**master**", config.url)){
+      if(ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)){
         // Check dead nodes
-        val timeout = System.currentTimeMillis() - config.deadNodeDetectionPeriod
+        val timeout = System.currentTimeMillis() - config.deadDetectionPeriod.node
 
         dataStore.allNodes().foreach { case (nodeUrl, status) =>
           if(status.timestamp < timeout){
@@ -131,7 +133,7 @@ class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Act
 
     RepositoryLock.execute(repositoryName, "create replica"){
       (1 to lackOfReplicas).foreach { _ =>
-        dataStore.getUrlOfAvailableNode(repositoryName, config.maxDiskUsage).map { nodeUrl =>
+        dataStore.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
           log.info(s"Create replica of ${repositoryName} at $nodeUrl")
           // Create replica repository
           httpPutJson(

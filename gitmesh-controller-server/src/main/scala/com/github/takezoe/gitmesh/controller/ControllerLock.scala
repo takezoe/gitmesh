@@ -9,7 +9,7 @@ object ControllerLock {
 
   private val log = LoggerFactory.getLogger(ControllerLock.getClass)
 
-  def runForMaster(key: String, node: String, timeout: Long = 5 * 60 * 1000): Boolean = Database.withConnection { conn =>
+  def runForMaster(key: String, node: String, timeout: Long): Boolean = Database.withConnection { conn =>
     Database.withTransaction(conn){
       val timestamp = System.currentTimeMillis
       val lock = ExclusiveLocks.filter(_.lockKey eq key).map(t => t.comment ~ t.lockTime).firstOption(conn)

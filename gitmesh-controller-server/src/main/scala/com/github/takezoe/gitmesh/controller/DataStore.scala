@@ -9,7 +9,7 @@ import models._
 class DataStore extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(getClass)
-  implicit override val httpClientConfig = Config.httpClientConfig
+  implicit override val httpClientConfig = Config.httpClientConfig // TODO
 
   def existNode(nodeUrl: String): Boolean = Database.withConnection { conn =>
     val count = Nodes.filter(_.nodeUrl eq nodeUrl).count(conn)
@@ -20,7 +20,7 @@ class DataStore extends HttpClientSupport {
     }
   }
 
-  def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[APIController.JoinNodeRepository], replica: Int): Unit =
+  def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[APIController.JoinNodeRepository])(implicit config: Config): Unit =
     Database.withConnection { conn =>
       log.info(s"Add new node: $nodeUrl")
 
@@ -32,7 +32,7 @@ class DataStore extends HttpClientSupport {
         RepositoryLock.execute(repo.name, "add node"){
           Database.withTransaction(conn){
             getRepositoryStatus(repo.name) match  {
-              case Some(x) if x.timestamp == repo.timestamp && x.nodes.size < replica =>
+              case Some(x) if x.timestamp == repo.timestamp && x.nodes.size < config.replica =>
                 if(x.primaryNode.isEmpty){
                   Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repo.name).execute(conn)
                 }
@@ -59,7 +59,7 @@ class DataStore extends HttpClientSupport {
     }
   }
 
-  def removeNode(nodeUrl: String): Unit = Database.withConnection { conn =>
+  def removeNode(nodeUrl: String)(implicit config: Config): Unit = Database.withConnection { conn =>
     log.info(s"Remove node: $nodeUrl")
     val repos = Repositories.filter(_.primaryNode eq nodeUrl).map(_.repositoryName).list(conn)
 
@@ -166,10 +166,10 @@ class DataStore extends HttpClientSupport {
       .sortBy(_.name)
   }
 
-  def getUrlOfAvailableNode(repositoryName: String, maxDiskUsage: Double): Option[String] = Database.withConnection { conn =>
+  def getUrlOfAvailableNode(repositoryName: String)(implicit config: Config): Option[String] = Database.withConnection { conn =>
     Nodes.filter(t =>
       (t.nodeUrl notIn (NodeRepositories.filter(_.repositoryName eq repositoryName).map(_.nodeUrl))) &&
-      (t.diskUsage le maxDiskUsage)
+      (t.diskUsage le config.maxDiskUsage)
     ).sortBy(_.diskUsage asc).map(_.nodeUrl).firstOption(conn)
   }
 

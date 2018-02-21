@@ -6,10 +6,10 @@ import com.github.takezoe.resty._
 import org.slf4j.LoggerFactory
 import APIController._
 
-class APIController(config: Config, dataStore: DataStore) extends HttpClientSupport {
+class APIController(dataStore: DataStore)(implicit val config: Config) extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(classOf[APIController])
-  implicit override val httpClientConfig = Config.httpClientConfig
+  implicit override val httpClientConfig = Config.httpClientConfig // TODO
 
   @Action(method = "POST", path = "/api/nodes/notify")
   def notifyFromNode(node: JoinNodeRequest, response: HttpServletResponse): Unit = {
@@ -22,7 +22,7 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
     if(dataStore.existNode(node.url)){
       dataStore.updateNodeStatus(node.url, node.diskUsage)
     } else {
-      dataStore.addNewNode(node.url, node.diskUsage, node.repos, config.replica)
+      dataStore.addNewNode(node.url, node.diskUsage, node.repos)
     }
   }
 

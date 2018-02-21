@@ -1,14 +1,26 @@
 package com.github.takezoe.gitmesh.controller
 
 import java.io.{File, FileOutputStream}
+import java.util.concurrent.atomic.AtomicReference
 import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
 import scala.collection.JavaConverters._
 import okhttp3.{MediaType, OkHttpClient, Request, RequestBody}
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.slf4j.LoggerFactory
-
 import syntax._
+
+object GitRepositoryProxyServer {
+
+  private val config = new AtomicReference[Config]
+
+  def initialize(config: Config): Unit = {
+    GitRepositoryProxyServer.config.set(config)
+  }
+
+  def getConfig(): Config = config.get()
+
+}
 
 // TODO Retry requests?
 class GitRepositoryProxyServer extends HttpServlet {
@@ -18,6 +30,8 @@ class GitRepositoryProxyServer extends HttpServlet {
   private val client = new OkHttpClient()
 
   override def doPost(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
+    implicit val config = GitRepositoryProxyServer.getConfig()
+
     val path = req.getRequestURI
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
@@ -79,6 +93,8 @@ class GitRepositoryProxyServer extends HttpServlet {
   }
 
   override def doGet(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
+    implicit val config = GitRepositoryProxyServer.getConfig()
+
     val path = req.getRequestURI
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")

@@ -17,11 +17,12 @@ object RepositoryLock {
 
   private val log = LoggerFactory.getLogger(RepositoryLock.getClass)
 
-  def execute[T](repositoryName: String, comment: String)(action: => T): T = Database.withConnection { conn =>
-    _execute(conn, repositoryName, comment, 0)(action)
+  def execute[T](repositoryName: String, comment: String)(action: => T)(implicit config: Config): T = Database.withConnection { conn =>
+    _execute(conn, repositoryName, comment, config.repositoryLock, 0)(action)
   }
 
-  private def _execute[T](conn: Connection, repositoryName: String, comment: String, retry: Int)(action: => T): T = {
+  private def _execute[T](conn: Connection, repositoryName: String, comment: String, retryConfig: Config.RepositoryLock, retry: Int)
+                         (action: => T): T = {
     try {
       try {
         Database.withTransaction(conn){
@@ -48,10 +49,10 @@ object RepositoryLock {
       }
     } catch {
       case e: ActionException => throw e.getCause
-      case _: Exception if retry < 10 =>
-        Thread.sleep(1000) // TODO should be configurable.
+      case _: Exception if retry < retryConfig.maxRetry =>
+        Thread.sleep(retryConfig.retryInterval)
         log.info(s"Retry to get lock for $repositoryName")
-        _execute(conn, repositoryName, comment, retry + 1)(action)
+        _execute(conn, repositoryName, comment, retryConfig, retry + 1)(action)
     }
   }
 

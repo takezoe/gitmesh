@@ -2,6 +2,7 @@ package com.github.takezoe.gitmesh.controller
 
 import com.github.takezoe.resty.HttpClientConfig
 import com.typesafe.config.ConfigFactory
+import Config._
 
 case class Config(
   url: String,
@@ -9,24 +10,35 @@ case class Config(
   maxDiskUsage: Double,
   database: DatabaseConfig,
   corsHeader: Option[String],
-  deadNodeDetectionPeriod: Long
-)
-
-case class DatabaseConfig(
-  driver: String,
-  url: String,
-  user: String,
-  password: String,
-  connectionTimeout: Option[Long],
-  idleTimeout: Option[Long],
-  maxLifetime: Option[Long],
-  minimumIdle: Option[Int],
-  maximumPoolSize: Option[Int]
+  deadDetectionPeriod: DeadDetectionPeriod,
+  repositoryLock: RepositoryLock
 )
 
 object Config {
 
-  val httpClientConfig = HttpClientConfig(maxRetry = 5, retryInterval = 500)
+  case class DatabaseConfig(
+    driver: String,
+    url: String,
+    user: String,
+    password: String,
+    connectionTimeout: Option[Long],
+    idleTimeout: Option[Long],
+    maxLifetime: Option[Long],
+    minimumIdle: Option[Int],
+    maximumPoolSize: Option[Int]
+  )
+
+  case class DeadDetectionPeriod(
+    node: Long,
+    master: Long
+  )
+
+  case class RepositoryLock(
+    maxRetry: Int,
+    retryInterval: Long
+  )
+
+  val httpClientConfig = HttpClientConfig(maxRetry = 5, retryInterval = 500) // TODO should be configurable
 
   def load(): Config = {
     implicit val c = ConfigFactory.load()
@@ -34,7 +46,7 @@ object Config {
       url          = c.getString("gitmesh.url"),
       replica      = c.getInt("gitmesh.replica"),
       maxDiskUsage = c.getDouble("gitmesh.maxDiskUsage"),
-      database     = DatabaseConfig(
+      database     = Config.DatabaseConfig(
         driver            = c.getString("gitmesh.database.driver"),
         url               = c.getString("gitmesh.database.url"),
         user              = c.getString("gitmesh.database.user"),
@@ -46,7 +58,14 @@ object Config {
         maximumPoolSize   = getOptionValue("gitmesh.database.maximumPoolSize", c.getInt)
       ),
       corsHeader = getOptionValue("gitmesh.corsHeader", c.getString),
-      deadNodeDetectionPeriod = getOptionValue("gitmesh.deadNodeDetectionPeriod", c.getLong).getOrElse(60 * 1000)
+      deadDetectionPeriod = Config.DeadDetectionPeriod(
+        node   = c.getLong("gitmesh.deadDetectionPeriod.node"),
+        master = c.getLong("gitmesh.deadDetectionPeriod.master")
+      ),
+      repositoryLock = Config.RepositoryLock(
+        maxRetry      = c.getInt("gitmesh.repositoryLock.maxRetry"),
+        retryInterval = c.getLong("gitmesh.repositoryLock.retryInterval")
+      )
     )
   }
 
