@@ -7,7 +7,9 @@ case class Config(
   url: String,
   replica: Int,
   maxDiskUsage: Double,
-  database: DatabaseConfig
+  database: DatabaseConfig,
+  corsHeader: Option[String],
+  deadNodeDetectionPeriod: Long
 )
 
 case class DatabaseConfig(
@@ -42,7 +44,9 @@ object Config {
         maxLifetime       = getOptionValue("gitmesh.database.maxLifetime", c.getLong),
         minimumIdle       = getOptionValue("gitmesh.database.minimumIdle", c.getInt),
         maximumPoolSize   = getOptionValue("gitmesh.database.maximumPoolSize", c.getInt)
-      )
+      ),
+      corsHeader = getOptionValue("gitmesh.corsHeader", c.getString),
+      deadNodeDetectionPeriod = getOptionValue("gitmesh.deadNodeDetectionPeriod", c.getLong).getOrElse(60 * 1000)
     )
   }
 

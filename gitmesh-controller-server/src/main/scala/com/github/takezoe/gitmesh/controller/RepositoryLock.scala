@@ -49,7 +49,7 @@ object RepositoryLock {
     } catch {
       case e: ActionException => throw e.getCause
       case _: Exception if retry < 10 =>
-        Thread.sleep(1000)
+        Thread.sleep(1000) // TODO should be configurable.
         log.info(s"Retry to get lock for $repositoryName")
         _execute(conn, repositoryName, comment, retry + 1)(action)
     }

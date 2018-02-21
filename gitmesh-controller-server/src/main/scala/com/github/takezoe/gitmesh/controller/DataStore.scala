@@ -166,10 +166,11 @@ class DataStore extends HttpClientSupport {
       .sortBy(_.name)
   }
 
-  def getUrlOfAvailableNode(repositoryName: String): Option[String] = Database.withConnection { conn =>
-    Nodes.filter(_.nodeUrl notIn (
-      NodeRepositories.filter(_.repositoryName eq repositoryName).map(_.nodeUrl)
-    )).sortBy(_.diskUsage asc).map(_.nodeUrl).firstOption(conn)
+  def getUrlOfAvailableNode(repositoryName: String, maxDiskUsage: Double): Option[String] = Database.withConnection { conn =>
+    Nodes.filter(t =>
+      (t.nodeUrl notIn (NodeRepositories.filter(_.repositoryName eq repositoryName).map(_.nodeUrl))) &&
+      (t.diskUsage le maxDiskUsage)
+    ).sortBy(_.diskUsage asc).map(_.nodeUrl).firstOption(conn)
   }
 
 }

@@ -39,6 +39,7 @@ class InitializeListener extends ServletContextListener {
 
     Database.withConnection { conn =>
       if (checkTableExist(conn)) {
+        // Clear cluster status
         if(ControllerLock.runForMaster("**master**", config.url)) {
           Database.withTransaction(conn){
             Repositories.update(_.primaryNode asNull).execute(conn)
@@ -64,7 +65,7 @@ class InitializeListener extends ServletContextListener {
 
     // Start background jobs
     val scheduler = QuartzSchedulerExtension(system)
-    scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[CheckRepositoryNodeActor], config, dataStore)), "tick")
+    scheduler.schedule("checkNodes", system.actorOf(Props(classOf[CheckRepositoryNodeActor], config, dataStore)), "tick")
   }
 
   private def liquibaseDriver(url: String): liquibase.database.Database = {
@@ -104,7 +105,7 @@ class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Act
     case _ => {
       if(ControllerLock.runForMaster("**master**", config.url)){
         // Check dead nodes
-        val timeout = System.currentTimeMillis() - (60 * 1000) // TODO Be configurable
+        val timeout = System.currentTimeMillis() - config.deadNodeDetectionPeriod
 
         dataStore.allNodes().foreach { case (nodeUrl, status) =>
           if(status.timestamp < timeout){
@@ -130,8 +131,7 @@ class CheckRepositoryNodeActor(config: Config, dataStore: DataStore) extends Act
 
     RepositoryLock.execute(repositoryName, "create replica"){
       (1 to lackOfReplicas).foreach { _ =>
-        // TODO check disk usage as well
-        dataStore.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
+        dataStore.getUrlOfAvailableNode(repositoryName, config.maxDiskUsage).map { nodeUrl =>
           log.info(s"Create replica of ${repositoryName} at $nodeUrl")
           // Create replica repository
           httpPutJson(

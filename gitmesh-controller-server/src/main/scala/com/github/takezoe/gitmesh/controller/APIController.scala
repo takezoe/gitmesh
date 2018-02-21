@@ -13,7 +13,11 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
 
   @Action(method = "POST", path = "/api/nodes/notify")
   def notifyFromNode(node: JoinNodeRequest, response: HttpServletResponse): Unit = {
-    response.setHeader("Access-Control-Allow-Origin", "*")
+    config.corsHeader.foreach { cors =>
+      if(cors.trim.length > 0){
+        response.setHeader("Access-Control-Allow-Origin", cors)
+      }
+    }
 
     if(dataStore.existNode(node.url)){
       dataStore.updateNodeStatus(node.url, node.diskUsage)
@@ -24,7 +28,11 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
 
   @Action(method = "GET", path = "/api/nodes")
   def listNodes(response: HttpServletResponse): Seq[Node] = {
-    response.setHeader("Access-Control-Allow-Origin", "*")
+    config.corsHeader.foreach { cors =>
+      if(cors.trim.length > 0){
+        response.setHeader("Access-Control-Allow-Origin", cors)
+      }
+    }
 
     dataStore.allNodes().map { case (node, status) =>
       Node(node, status.diskUsage, status.repos)
@@ -33,7 +41,11 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
 
   @Action(method = "GET", path = "/api/repos")
   def listRepositories(response: HttpServletResponse): Seq[RepositoryInfo] = {
-    response.setHeader("Access-Control-Allow-Origin", "*")
+    config.corsHeader.foreach { cors =>
+      if(cors.trim.length > 0){
+        response.setHeader("Access-Control-Allow-Origin", cors)
+      }
+    }
 
     dataStore.allRepositories()
   }
@@ -45,7 +57,11 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
 
   @Action(method = "DELETE", path = "/api/repos/{repositoryName}")
   def deleteRepository(repositoryName: String, response: HttpServletResponse): Unit = {
-    response.setHeader("Access-Control-Allow-Origin", "*")
+    config.corsHeader.foreach { cors =>
+      if(cors.trim.length > 0){
+        response.setHeader("Access-Control-Allow-Origin", cors)
+      }
+    }
 
     dataStore
       .getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
@@ -66,7 +82,11 @@ class APIController(config: Config, dataStore: DataStore) extends HttpClientSupp
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}")
   def createRepository(repositoryName: String, response: HttpServletResponse): ActionResult[Unit] = {
-    response.setHeader("Access-Control-Allow-Origin", "*")
+    config.corsHeader.foreach { cors =>
+      if(cors.trim.length > 0){
+        response.setHeader("Access-Control-Allow-Origin", cors)
+      }
+    }
 
     val repo = dataStore.getRepositoryStatus(repositoryName)
 
