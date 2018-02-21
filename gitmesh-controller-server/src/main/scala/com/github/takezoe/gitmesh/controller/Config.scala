@@ -11,7 +11,8 @@ case class Config(
   database: DatabaseConfig,
   corsHeader: Option[String],
   deadDetectionPeriod: DeadDetectionPeriod,
-  repositoryLock: RepositoryLock
+  repositoryLock: RepositoryLock,
+  httpClient: HttpClientConfig
 )
 
 object Config {
@@ -38,8 +39,6 @@ object Config {
     retryInterval: Long
   )
 
-  val httpClientConfig = HttpClientConfig(maxRetry = 5, retryInterval = 500) // TODO should be configurable
-
   def load(): Config = {
     implicit val c = ConfigFactory.load()
     Config(
@@ -65,6 +64,12 @@ object Config {
       repositoryLock = Config.RepositoryLock(
         maxRetry      = c.getInt("gitmesh.repositoryLock.maxRetry"),
         retryInterval = c.getLong("gitmesh.repositoryLock.retryInterval")
+      ),
+      httpClient = HttpClientConfig(
+        maxRetry      = c.getInt("resty.httpClient.maxRetry"),
+        retryInterval = c.getInt("resty.httpClient.retryInterval"),
+        maxFailure    = c.getInt("resty.httpClient.maxFailure"),
+        resetInterval = c.getInt("resty.httpClient.resetInterval")
       )
     )
   }

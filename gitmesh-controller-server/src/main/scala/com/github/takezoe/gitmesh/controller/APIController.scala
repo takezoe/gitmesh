@@ -8,8 +8,8 @@ import APIController._
 
 class APIController(dataStore: DataStore)(implicit val config: Config) extends HttpClientSupport {
 
+  implicit override val httpClientConfig = config.httpClient
   private val log = LoggerFactory.getLogger(classOf[APIController])
-  implicit override val httpClientConfig = Config.httpClientConfig // TODO
 
   @Action(method = "POST", path = "/api/nodes/notify")
   def notifyFromNode(node: JoinNodeRequest, response: HttpServletResponse): Unit = {

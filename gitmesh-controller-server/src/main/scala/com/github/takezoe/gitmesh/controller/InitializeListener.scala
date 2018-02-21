@@ -101,7 +101,7 @@ object GitMeshMigrationModule extends Module("gitmesh",
 class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore) extends Actor with HttpClientSupport {
 
   private val log = Logging(context.system, this)
-  implicit override val httpClientConfig = Config.httpClientConfig
+  implicit override val httpClientConfig = config.httpClient
 
   override def receive = {
     case _ => {

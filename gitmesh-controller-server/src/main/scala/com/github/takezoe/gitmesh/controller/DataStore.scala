@@ -9,7 +9,6 @@ import models._
 class DataStore extends HttpClientSupport {
 
   private val log = LoggerFactory.getLogger(getClass)
-  implicit override val httpClientConfig = Config.httpClientConfig // TODO
 
   def existNode(nodeUrl: String): Boolean = Database.withConnection { conn =>
     val count = Nodes.filter(_.nodeUrl eq nodeUrl).count(conn)
