@@ -39,7 +39,7 @@ class InitializeListener extends ServletContextListener {
     //notifier.send()
 
     val scheduler = QuartzSchedulerExtension(system)
-    scheduler.schedule("Every30Seconds", system.actorOf(Props(classOf[HeartBeatActor], heartBeatSender)), "tick")
+    scheduler.schedule("heatBeat", system.actorOf(Props(classOf[HeartBeatActor], heartBeatSender)), "tick")
   }
 
 }
@@ -54,14 +54,10 @@ class HeartBeatActor(notifier: HeartBeatSender) extends Actor with HttpClientSup
 
 class HeartBeatSender(config: Config) extends HttpClientSupport {
 
+  implicit override val httpClientConfig = config.httpClient
+
   private val log = LoggerFactory.getLogger(classOf[HeartBeatSender])
   private val urls = config.controllerUrl.map { url => s"$url/api/nodes/notify" }
-
-  implicit override val httpClientConfig = if(urls.length > 1){
-    Config.httpClientConfig.copy(maxFailure = 5, resetInterval = 5 * 60 * 1000)
-  } else {
-    Config.httpClientConfig
-  }
 
   def send(): Unit = {
     val rootDir = new File(config.directory)

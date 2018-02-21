@@ -9,7 +9,8 @@ import org.slf4j.LoggerFactory
 class APIController(implicit val config: Config) extends HttpClientSupport with GitOperations {
 
   private val log = LoggerFactory.getLogger(classOf[APIController])
-  implicit override val httpClientConfig = Config.httpClientConfig
+
+  implicit override val httpClientConfig = config.httpClient
 
   private def getRepositories(): Seq[String] = {
     val rootDir = new File(config.directory)
