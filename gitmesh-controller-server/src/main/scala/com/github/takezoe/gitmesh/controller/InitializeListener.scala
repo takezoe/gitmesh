@@ -131,19 +131,28 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
   private def createReplicas(primaryNode: String, repositoryName: String, timestamp: Long, enabledNodes: Int): Unit = {
     val lackOfReplicas = config.replica - enabledNodes
 
-    // TODO Need 2-phase cloning
-    RepositoryLock.execute(repositoryName, "create replica"){
-      (1 to lackOfReplicas).foreach { _ =>
-        dataStore.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
-          log.info(s"Create replica of ${repositoryName} at $nodeUrl")
-          // Create replica repository
+    (1 to lackOfReplicas).foreach { _ =>
+      dataStore.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
+        log.info(s"Create replica of ${repositoryName} at $nodeUrl")
+
+        if(timestamp == InitialRepositoryId){
+          // Repository is empty
+          RepositoryLock.execute(repositoryName, "create replica") {  // TODO shared lock?
+            httpPutJson(
+              s"$nodeUrl/api/repos/${repositoryName}/_clone",
+              CloneRequest(primaryNode, true),
+              builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
+            )
+            // Insert a node record here because cloning an empty repository is proceeded as 1-phase.
+            dataStore.insertNodeRepository(nodeUrl, repositoryName)
+          }
+        } else {
+          // Repository is not empty.
           httpPutJson(
-            s"$nodeUrl/api/repos/${repositoryName}",
-            CloneRequest(primaryNode),
+            s"$nodeUrl/api/repos/${repositoryName}/_clone",
+            CloneRequest(primaryNode, false),
             builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
           )
-          // Insert record
-          dataStore.insertNodeRepository(nodeUrl, repositoryName)
         }
       }
     }
@@ -151,4 +160,4 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
 
 }
 
-case class CloneRequest(nodeUrl: String)
+case class CloneRequest(nodeUrl: String, empty: Boolean)

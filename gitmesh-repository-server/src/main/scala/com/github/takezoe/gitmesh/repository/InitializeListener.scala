@@ -62,9 +62,14 @@ class HeartBeatSender(config: Config) extends HttpClientSupport {
   def send(): Unit = {
     val rootDir = new File(config.directory)
     val diskUsage = 1.0d - (rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble)
-    val repos = rootDir.listFiles(_.isDirectory).toSeq.map { dir =>
-      val timestamp = FileUtils.readFileToString(new File(rootDir, s"${dir.getName}.id"), "UTF-8").toLong
-      HeartBeatRepository(dir.getName, timestamp)
+    val repos = rootDir.listFiles(_.isDirectory).toSeq.flatMap { dir =>
+      val file = new File(rootDir, s"${dir.getName}.id")
+      if(file.exists){
+        val timestamp = FileUtils.readFileToString(new File(rootDir, s"${dir.getName}.id"), "UTF-8").toLong
+        Some(HeartBeatRepository(dir.getName, timestamp))
+      } else {
+        None
+      }
     }
 
     httpPostJson[String](urls, HeartBeatRequest(config.url, diskUsage, repos)) match {

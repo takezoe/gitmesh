@@ -129,6 +129,27 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
     }
   }
 
+  @Action(method = "POST", path = "/api/repos/{repositoryName}/_sync")
+  def synchronizeRepository(repositoryName: String, request: SynchronizeRequest): Unit = {
+    RepositoryLock.execute(repositoryName, "sync repository") { // TODO shared lock?
+      // TODO Debug
+      println("** synchronizeRepository **")
+      println(request.nodeUrl)
+
+      dataStore.getRepositoryStatus(repositoryName).foreach { x =>
+        x.primaryNode.foreach { primaryNode =>
+          httpPutJson(
+            s"${request.nodeUrl}/api/repos/$repositoryName/_sync",
+            SynchronizeRequest(primaryNode),
+            builder => { builder.addHeader("GITMESH-UPDATE-ID", x.timestamp.toString) }
+          )
+        }
+      }
+
+      dataStore.insertNodeRepository(request.nodeUrl, repositoryName)
+    }
+  }
+
 }
 
 object APIController {
@@ -137,5 +158,7 @@ object APIController {
 
   case class Node(url: String, diskUsage: Double, repos: Seq[String])
   case class NodeRepositoryInfo(name: String, status: String)
+
+  case class SynchronizeRequest(nodeUrl: String)
 }
 

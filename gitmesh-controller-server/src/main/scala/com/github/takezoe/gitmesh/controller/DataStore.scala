@@ -125,7 +125,7 @@ class DataStore extends HttpClientSupport {
 
   def insertRepository(repositoryName: String): Long = Database.withConnection { conn =>
     Database.withTransaction(conn){
-      val timestamp = System.currentTimeMillis
+      val timestamp = InitialRepositoryId
       Repositories.insert(Repository(repositoryName, None, timestamp)).execute(conn)
       timestamp
     }

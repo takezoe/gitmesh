@@ -5,6 +5,9 @@ object models {
   import com.github.takezoe.tranquil._
   import java.sql.ResultSet
 
+  // Initial value of LAST_UPDATE_TIME column of REPOSITORY table
+  val InitialRepositoryId = -1L
+
   case class Node(nodeUrl: String, lastUpdateTime: Long, diskUsage: Double)
 
   class Nodes extends TableDef[Node]("NODE") {

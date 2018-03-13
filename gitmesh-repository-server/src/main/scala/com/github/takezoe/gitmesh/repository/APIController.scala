@@ -85,11 +85,12 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   }
 
   // TODO Need 2-phase cloning
-  @Action(method = "PUT", path = "/api/repos/{repositoryName}")
+  @Action(method = "PUT", path = "/api/repos/{repositoryName}/_clone")
   def cloneRepository(repositoryName: String, request: CloneRequest,
                       @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Unit = {
-    val cloneUrl = s"${config.url}/git/$repositoryName.git"
-    log.info(s"Synchronize repository: $repositoryName with ${cloneUrl}")
+
+    val remoteUrl = s"${config.url}/git/$repositoryName.git"
+    log.info(s"Clone repository: $repositoryName from ${remoteUrl}")
 
     // Delete the repository directory if it exists
     val dir = new File(config.directory, repositoryName)
@@ -97,14 +98,37 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
       FileUtils.forceDelete(dir)
     }
 
-    // Clone
-    httpGet[Repository](s"${request.nodeUrl}/api/repos/$repositoryName") match {
-      case Left(e) => throw new RuntimeException(e.errors.mkString("\n"))
-      // Source is an empty repository
-      case Right(x) if x.empty => gitInit(repositoryName)
-      // Clone from the source repository
-      case _ => gitClone(repositoryName, cloneUrl)
+    if(request.empty){
+      // Create an empty repository
+      gitInit(repositoryName)
+
+      // write timestamp
+      val file = new File(config.directory, s"$repositoryName.id")
+      FileUtils.write(file, timestamp.toString, "UTF-8")
+
+    } else {
+      // Clone the remote repository (without lock)
+      gitClone(repositoryName, remoteUrl)
+
+      // Request second phase
+      httpPostJson(
+        config.controllerUrl.map { controllerUrl =>
+          s"${controllerUrl}/api/repos/$repositoryName/_sync"
+        },
+        SynchronizeRequest(config.url)
+      )
     }
+  }
+
+  @Action(method = "PUT", path = "/api/repos/{repositoryName}/_sync")
+  def synchronizeRepository(repositoryName: String, request: SynchronizeRequest,
+                            @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Unit = {
+
+    val remoteUrl = s"${request.nodeUrl}/git/$repositoryName.git"
+    log.info(s"Synchronize repository: $repositoryName with ${remoteUrl}")
+
+    // Fetch all branches from the remote repository (with lock)
+    gitFetchAll(repositoryName, remoteUrl)
 
     // write timestamp
     val file = new File(config.directory, s"$repositoryName.id")
@@ -114,5 +138,6 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
 }
 
 case class Status(url: String, diskUsage: Double, repos: Seq[String])
-case class CloneRequest(nodeUrl: String)
+case class CloneRequest(nodeUrl: String, empty: Boolean)
+case class SynchronizeRequest(nodeUrl: String)
 case class Repository(name: String, empty: Boolean)
