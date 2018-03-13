@@ -131,6 +131,7 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
   private def createReplicas(primaryNode: String, repositoryName: String, timestamp: Long, enabledNodes: Int): Unit = {
     val lackOfReplicas = config.replica - enabledNodes
 
+    // TODO Need 2-phase cloning
     RepositoryLock.execute(repositoryName, "create replica"){
       (1 to lackOfReplicas).foreach { _ =>
         dataStore.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>

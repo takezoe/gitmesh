@@ -84,6 +84,7 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
     }
   }
 
+  // TODO Need 2-phase cloning
   @Action(method = "PUT", path = "/api/repos/{repositoryName}")
   def cloneRepository(repositoryName: String, request: CloneRequest,
                       @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Unit = {
