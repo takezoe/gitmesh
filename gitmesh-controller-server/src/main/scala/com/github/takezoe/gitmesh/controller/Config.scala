@@ -9,7 +9,6 @@ case class Config(
   replica: Int,
   maxDiskUsage: Double,
   database: DatabaseConfig,
-  corsHeader: Option[String],
   deadDetectionPeriod: DeadDetectionPeriod,
   repositoryLock: RepositoryLock,
   httpClient: HttpClientConfig
@@ -56,7 +55,6 @@ object Config {
         minimumIdle       = getOptionValue("gitmesh.database.minimumIdle", c.getInt),
         maximumPoolSize   = getOptionValue("gitmesh.database.maximumPoolSize", c.getInt)
       ),
-      corsHeader = getOptionValue("gitmesh.corsHeader", c.getString),
       deadDetectionPeriod = Config.DeadDetectionPeriod(
         node   = c.getLong("gitmesh.deadDetectionPeriod.node"),
         master = c.getLong("gitmesh.deadDetectionPeriod.master")
