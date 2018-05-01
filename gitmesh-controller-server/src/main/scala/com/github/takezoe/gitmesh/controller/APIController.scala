@@ -139,8 +139,8 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
       dataStore.getRepositoryStatus(repositoryName).foreach { x =>
         x.primaryNode.foreach { primaryNode =>
           httpPutJson(
-            s"${request.nodeUrl}/api/repos/$repositoryName/_sync",
-            SynchronizeRequest(primaryNode),
+            s"${primaryNode}/api/repos/$repositoryName/_sync",
+            SynchronizeRequest(request.nodeUrl),
             builder => { builder.addHeader("GITMESH-UPDATE-ID", x.timestamp.toString) }
           )
         }

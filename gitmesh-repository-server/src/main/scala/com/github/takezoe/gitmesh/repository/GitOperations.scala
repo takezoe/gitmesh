@@ -37,10 +37,9 @@ trait GitOperations {
     }
   }
 
-  def gitFetchAll(repositoryName: String, sourceUrl: String)(implicit config: Config): Unit = {
+  def gitPushAll(repositoryName: String, targetUrl: String)(implicit config: Config): Unit = {
     using(Git.open(new File(config.directory, repositoryName))){ git =>
-      // TODO Fetch all tags as well
-      git.fetch().setRemote(sourceUrl).setRefSpecs("refs/heads/*:refs/heads/*").call()
+      git.push().setRemote(targetUrl).setPushAll().call()
     }
   }
 

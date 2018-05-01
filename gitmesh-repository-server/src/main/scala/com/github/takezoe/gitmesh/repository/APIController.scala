@@ -127,8 +127,8 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
     val remoteUrl = s"${request.nodeUrl}/git/$repositoryName.git"
     log.info(s"Synchronize repository: $repositoryName with ${remoteUrl}")
 
-    // Fetch all branches from the remote repository (with lock)
-    gitFetchAll(repositoryName, remoteUrl)
+    // Push all to the remote repository (with lock)
+    gitPushAll(repositoryName, remoteUrl)
 
     // write timestamp
     val file = new File(config.directory, s"$repositoryName.id")
