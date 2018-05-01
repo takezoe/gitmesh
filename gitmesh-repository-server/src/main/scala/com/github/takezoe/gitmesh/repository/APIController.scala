@@ -6,6 +6,9 @@ import com.github.takezoe.resty._
 import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global // TODO use independent execution context for IO
+
 class APIController(implicit val config: Config) extends HttpClientSupport with GitOperations {
 
   private val log = LoggerFactory.getLogger(classOf[APIController])
@@ -87,52 +90,66 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   // TODO Need 2-phase cloning
   @Action(method = "PUT", path = "/api/repos/{repositoryName}/_clone")
   def cloneRepository(repositoryName: String, request: CloneRequest,
-                      @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Unit = {
+                      @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Future[Unit] = {
+    // TODO Don't hold transaction!!
+    Future {
+      val remoteUrl = s"${config.url}/git/$repositoryName.git"
+      log.info(s"Clone repository: $repositoryName from ${remoteUrl}")
 
-    val remoteUrl = s"${config.url}/git/$repositoryName.git"
-    log.info(s"Clone repository: $repositoryName from ${remoteUrl}")
+      // Delete the repository directory if it exists
+      val dir = new File(config.directory, repositoryName)
+      if(dir.exists){
+        FileUtils.forceDelete(dir)
+      }
 
-    // Delete the repository directory if it exists
-    val dir = new File(config.directory, repositoryName)
-    if(dir.exists){
-      FileUtils.forceDelete(dir)
-    }
+      if(request.empty){
+        log.info("Create empty repository")
 
-    if(request.empty){
-      // Create an empty repository
-      gitInit(repositoryName)
+        // Create an empty repository
+        gitInit(repositoryName)
 
-      // write timestamp
-      val file = new File(config.directory, s"$repositoryName.id")
-      FileUtils.write(file, timestamp.toString, "UTF-8")
+        // write timestamp
+        val file = new File(config.directory, s"$repositoryName.id")
+        FileUtils.write(file, timestamp.toString, "UTF-8")
 
-    } else {
-      // Clone the remote repository (without lock)
-      gitClone(repositoryName, remoteUrl)
+      } else {
+        log.info("Clone repository")
+        // Clone the remote repository (without lock)
+        gitClone(repositoryName, remoteUrl)
 
-      // Request second phase
-      httpPostJson(
-        config.controllerUrl.map { controllerUrl =>
-          s"${controllerUrl}/api/repos/$repositoryName/_sync"
-        },
-        SynchronizeRequest(config.url)
-      )
+        // Request second phase to the primary node
+        httpPutJson(
+          s"${request.nodeUrl}/api/repos/$repositoryName/_sync",
+          SynchronizeRequest(request.nodeUrl),
+          builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
+        )
+      }
     }
   }
 
   @Action(method = "PUT", path = "/api/repos/{repositoryName}/_sync")
   def synchronizeRepository(repositoryName: String, request: SynchronizeRequest,
-                            @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Unit = {
+                            @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Future[Unit] = {
 
-    val remoteUrl = s"${request.nodeUrl}/git/$repositoryName.git"
-    log.info(s"Synchronize repository: $repositoryName with ${remoteUrl}")
+    Future {
+      val remoteUrl = s"${request.nodeUrl}/git/$repositoryName.git"
+      log.info(s"Synchronize repository: $repositoryName with ${remoteUrl}")
 
-    // Push all to the remote repository (with lock)
-    gitPushAll(repositoryName, remoteUrl)
+      // Push all to the remote repository (with lock)
+      // TODO get exclusive lock
+      gitPushAll(repositoryName, remoteUrl)
 
-    // write timestamp
-    val file = new File(config.directory, s"$repositoryName.id")
-    FileUtils.write(file, timestamp.toString, "UTF-8")
+      // write timestamp
+      val file = new File(config.directory, s"$repositoryName.id")
+      FileUtils.write(file, timestamp.toString, "UTF-8")
+
+      httpPostJson(
+        config.controllerUrl.map { controllerUrl =>
+          s"${controllerUrl}/api/repos/$repositoryName/_synced"
+        },
+        SynchronizeRequest(config.url)
+      )
+    }
   }
 
 }

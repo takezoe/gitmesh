@@ -136,6 +136,7 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
         log.info(s"Create replica of ${repositoryName} at $nodeUrl")
 
         if(timestamp == InitialRepositoryId){
+          log.info("Create empty repository")
           // Repository is empty
           RepositoryLock.execute(repositoryName, "create replica") {  // TODO shared lock?
             httpPutJson(
@@ -147,6 +148,7 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
             dataStore.insertNodeRepository(nodeUrl, repositoryName)
           }
         } else {
+          log.info("Clone repository")
           // Repository is not empty.
           httpPutJson(
             s"$nodeUrl/api/repos/${repositoryName}/_clone",
