@@ -131,6 +131,7 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}/_synced")
   def repositorySynchronized(repositoryName: String, request: SynchronizeRequest): Unit = {
+    println("**** synced!! " + request.nodeUrl)
     dataStore.insertNodeRepository(request.nodeUrl, repositoryName)
   }
 
