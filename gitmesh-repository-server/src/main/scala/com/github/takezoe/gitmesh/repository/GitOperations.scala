@@ -39,7 +39,9 @@ trait GitOperations {
 
   def gitPushAll(repositoryName: String, targetUrl: String)(implicit config: Config): Unit = {
     using(Git.open(new File(config.directory, repositoryName))){ git =>
-      git.push().setRemote(targetUrl).setPushAll().call()
+      if(git.getRepository.resolve(Constants.HEAD) != null){
+        git.push().setRemote(targetUrl).setPushAll().call()
+      }
     }
   }
 
