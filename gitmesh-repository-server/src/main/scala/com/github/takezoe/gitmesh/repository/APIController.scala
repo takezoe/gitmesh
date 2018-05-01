@@ -90,7 +90,7 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   // TODO Need 2-phase cloning
   @Action(method = "PUT", path = "/api/repos/{repositoryName}/_clone")
   def cloneRepository(repositoryName: String, request: CloneRequest,
-                      @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Future[Unit] = {
+                      @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Unit = {
     // TODO Don't hold transaction!!
     Future {
       val remoteUrl = s"${config.url}/git/$repositoryName.git"
@@ -125,11 +125,13 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
         )
       }
     }
+
+    ()
   }
 
   @Action(method = "PUT", path = "/api/repos/{repositoryName}/_sync")
   def synchronizeRepository(repositoryName: String, request: SynchronizeRequest,
-                            @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Future[Unit] = {
+                            @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Unit = {
 
     Future {
       val remoteUrl = s"${request.nodeUrl}/git/$repositoryName.git"
@@ -151,6 +153,8 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
         SynchronizeRequest(request.nodeUrl)
       )
     }
+
+    ()
   }
 
 }
