@@ -16,18 +16,30 @@ Git repositories are available at `/git/REPOSITORY_NAME.git`
   [
     {
       "name": "repo1",
-      "primaryNode": "http://localhost:8081".
+      "primaryNode": "http://localhost:8082".
       "nodes": [
-        "http://localhost:8081",
-        "http://localhost:8082"
+        {
+          "url": "http://localhost:8082",
+          "status": "READY"
+        },
+        {
+          "url": "http://localhost:8083",
+          "status": "PREPARING"
+        }
       ]
     },
     {
       "name": "repo2",
-      "primaryNode": "http://localhost:8081".
+      "primaryNode": "http://localhost:8082".
       "nodes": [
-        "http://localhost:8081",
-        "http://localhost:8082"
+        {
+          "url": "http://localhost:8082",
+          "status": "READY"
+        },
+        {
+          "url": "http://localhost:8083",
+          "status": "READY"
+        }
       ]
     }    
   ]
@@ -45,6 +57,12 @@ Git repositories are available at `/git/REPOSITORY_NAME.git`
 - Request: None
 - Response: None
 
+### Delete a repository (by POST method)
+
+- Endpoint: `POST /api/repos/REPOSITORY_NAME/_delete`
+- Request: None
+- Response: None
+
 ### List nodes
 
 - Endpoint: `GET /api/nodes`
@@ -53,19 +71,29 @@ Git repositories are available at `/git/REPOSITORY_NAME.git`
   ```javascript
   [
     {
-      "node": "http://localhost:8081",
+      "url": "http://localhost:8082",
       "diskUsage": 0.5,
       "repos": [
-        "repo1",
-        "repo2"
+        {
+          "name": "repo1",
+          "status": "READY"
+        },{
+          "name": "repo2",
+          "status": "PREPARING"
+        }
       ]
     },
     {
-      "node": "http://localhost:8082",
+      "node": "http://localhost:8083",
       "diskUsage": 0.5,
       "repos": [
-        "repo1",
-        "repo2"
+        {
+          "name": "repo1",
+          "status": "READY"
+        },{
+          "name": "repo2",
+          "status": "READY"
+        }
       ]
     }
   ]
@@ -73,15 +101,20 @@ Git repositories are available at `/git/REPOSITORY_NAME.git`
 
 ### Join node
 
-- Endpoint: `GET /api/nodes/join`
+- Endpoint: `GET /api/nodes/notify`
 - Request:
   ```javascript
   {
-    "node": "http://localhost:8081",
+    "url": "http://localhost:8082",
     "diskUsage": 0.5,
     "repos": [
-      "repo1",
-      "repo2"
+      {
+        "name": "repo1",
+        "timestamp": 1525232262745
+      },{
+        "name: ""repo2",
+        "timestamp": 1525232262745
+       }
     ]
   }
   ```
