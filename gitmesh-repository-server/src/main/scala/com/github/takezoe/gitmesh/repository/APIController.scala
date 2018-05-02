@@ -145,7 +145,6 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
       val file = new File(config.directory, s"$repositoryName.id")
       FileUtils.write(file, timestamp.toString, "UTF-8")
 
-      println("synced!! " + config.controllerUrl)
       httpPostJson(
         config.controllerUrl.map { controllerUrl =>
           s"${controllerUrl}/api/repos/$repositoryName/_synced"
