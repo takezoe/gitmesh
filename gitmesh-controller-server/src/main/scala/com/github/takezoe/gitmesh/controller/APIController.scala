@@ -15,12 +15,6 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
 
   @Action(method = "POST", path = "/api/nodes/notify")
   def notifyFromNode(node: JoinNodeRequest, response: HttpServletResponse): Unit = {
-    config.corsHeader.foreach { cors =>
-      if(cors.trim.length > 0){
-        response.setHeader("Access-Control-Allow-Origin", cors)
-      }
-    }
-
     if(dataStore.existNode(node.url)){
       dataStore.updateNodeStatus(node.url, node.diskUsage)
     } else {
@@ -30,23 +24,11 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
 
   @Action(method = "GET", path = "/api/nodes")
   def listNodes(response: HttpServletResponse): Seq[NodeStatus] = {
-    config.corsHeader.foreach { cors =>
-      if(cors.trim.length > 0){
-        response.setHeader("Access-Control-Allow-Origin", cors)
-      }
-    }
-
     dataStore.allNodes()
   }
 
   @Action(method = "GET", path = "/api/repos")
   def listRepositories(response: HttpServletResponse): Seq[RepositoryInfo] = {
-    config.corsHeader.foreach { cors =>
-      if(cors.trim.length > 0){
-        response.setHeader("Access-Control-Allow-Origin", cors)
-      }
-    }
-
     dataStore.allRepositories()
   }
 
@@ -57,12 +39,6 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
 
   @Action(method = "DELETE", path = "/api/repos/{repositoryName}")
   def deleteRepository(repositoryName: String, response: HttpServletResponse): Unit = {
-    config.corsHeader.foreach { cors =>
-      if(cors.trim.length > 0){
-        response.setHeader("Access-Control-Allow-Origin", cors)
-      }
-    }
-
     dataStore
       .getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
       .foreach { node =>
@@ -82,12 +58,6 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}")
   def createRepository(repositoryName: String, response: HttpServletResponse): ActionResult[Unit] = {
-    config.corsHeader.foreach { cors =>
-      if(cors.trim.length > 0){
-        response.setHeader("Access-Control-Allow-Origin", cors)
-      }
-    }
-
     val repo = dataStore.getRepositoryStatus(repositoryName)
 
     if(repo.nonEmpty){
