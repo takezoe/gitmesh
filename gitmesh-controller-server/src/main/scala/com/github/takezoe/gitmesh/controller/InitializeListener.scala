@@ -16,6 +16,7 @@ import io.github.gitbucket.solidbase.migration.LiquibaseMigration
 import io.github.gitbucket.solidbase.model.{Module, Version}
 import liquibase.database.core._
 import models._
+import api._
 import syntax._
 
 @WebListener
@@ -109,10 +110,10 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
         // Check dead nodes
         val timeout = System.currentTimeMillis() - config.deadDetectionPeriod.node
 
-        dataStore.allNodes().foreach { case (nodeUrl, status) =>
-          if(status.timestamp < timeout){
-            log.warning(s"$nodeUrl is retired.")
-            dataStore.removeNode(nodeUrl)
+        dataStore.allNodes().foreach { node =>
+          if(node.timestamp < timeout){
+            log.warning(s"${node.url} is retired.")
+            dataStore.removeNode(node.url)
           }
         }
 
@@ -163,5 +164,3 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
   }
 
 }
-
-case class CloneRequest(nodeUrl: String, empty: Boolean)

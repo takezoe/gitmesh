@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory
 import com.github.takezoe.tranquil._
 import com.github.takezoe.tranquil.Dialect.mysql
 import models._
+import api._
 
 class DataStore extends HttpClientSupport {
 
@@ -19,7 +20,7 @@ class DataStore extends HttpClientSupport {
     }
   }
 
-  def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[APIController.JoinNodeRepository])(implicit config: Config): Unit =
+  def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[JoinNodeRepository])(implicit config: Config): Unit =
     Database.withConnection { conn =>
       log.info(s"Add new node: $nodeUrl")
 
@@ -87,7 +88,7 @@ class DataStore extends HttpClientSupport {
     }
   }
 
-  def allNodes(): Seq[(String, NodeStatus)] = Database.withConnection { conn =>
+  def allNodes(): Seq[NodeStatus] = Database.withConnection { conn =>
     Nodes
       .leftJoin(NodeRepositories){ case node ~ nodeRepository => node.nodeUrl eq nodeRepository.nodeUrl }
       .list(conn)
@@ -95,10 +96,10 @@ class DataStore extends HttpClientSupport {
       .map { case (nodeUrl, seq) =>
         val node = seq.head._1
         val repos = if(seq.head._2.isEmpty) Nil else seq.flatMap(_._2.map(x => NodeStatusRepository(x.repositoryName, x.status)))
-        (nodeUrl, NodeStatus(node.lastUpdateTime, node.diskUsage, repos))
+        NodeStatus(nodeUrl, node.lastUpdateTime, node.diskUsage, repos)
       }
       .toSeq
-      .sortBy(_._1)
+      .sortBy(_.url)
   }
 
   /**
@@ -178,9 +179,3 @@ class DataStore extends HttpClientSupport {
   }
 
 }
-
-case class RepositoryInfo(name: String, primaryNode: Option[String], timestamp: Long, nodes: Seq[RepositoryNodeInfo])
-case class RepositoryNodeInfo(nodeUrl: String, status: String)
-
-case class NodeStatus(timestamp: Long, diskUsage: Double, repos: Seq[NodeStatusRepository])
-case class NodeStatusRepository(repositoryName: String, status: String)

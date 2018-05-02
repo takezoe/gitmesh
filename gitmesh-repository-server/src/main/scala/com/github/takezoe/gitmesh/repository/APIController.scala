@@ -138,7 +138,7 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
       log.info(s"Synchronize repository: $repositoryName with ${remoteUrl}")
 
       // Push all to the remote repository (with lock)
-      // TODO get exclusive lock
+      // TODO get exclusive lock to the repository
       gitPushAll(repositoryName, remoteUrl)
 
       // write timestamp
@@ -149,7 +149,7 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
         config.controllerUrl.map { controllerUrl =>
           s"${controllerUrl}/api/repos/$repositoryName/_synced"
         },
-        SynchronizeRequest(request.nodeUrl)
+        SynchronizedRequest(request.nodeUrl)
       )
     }
 
@@ -161,4 +161,5 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
 case class Status(url: String, diskUsage: Double, repos: Seq[String])
 case class CloneRequest(nodeUrl: String, empty: Boolean)
 case class SynchronizeRequest(nodeUrl: String)
+case class SynchronizedRequest(nodeUrl: String)
 case class Repository(name: String, empty: Boolean)

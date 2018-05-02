@@ -56,7 +56,7 @@ class GitRepositoryProxyServer extends HttpServlet {
           var responded = false
 
           nodes.foreach { node =>
-            val builder = new Request.Builder().url(node.nodeUrl + path + (if (queryString == null) "" else "?" + queryString))
+            val builder = new Request.Builder().url(node.url + path + (if (queryString == null) "" else "?" + queryString))
 
             req.getHeaderNames.asScala.foreach { name =>
               builder.addHeader(name, req.getHeader(name))
@@ -82,8 +82,8 @@ class GitRepositoryProxyServer extends HttpServlet {
             } catch {
               // If request failed remove the node
               case e: Exception =>
-                log.error(s"Remove node ${node.nodeUrl} by error: ${e.toString}")
-                dataStore.removeNode(node.nodeUrl)
+                log.error(s"Remove node ${node.url} by error: ${e.toString}")
+                dataStore.removeNode(node.url)
             }
           }
         } finally {
