@@ -17,42 +17,49 @@ object RepositoryLock {
 
   private val log = LoggerFactory.getLogger(RepositoryLock.getClass)
 
-  def execute[T](repositoryName: String, comment: String)(action: => T)(implicit config: Config): T = Database.withConnection { conn =>
-    _execute(conn, repositoryName, comment, config.repositoryLock, 0)(action)
+  def lock(repositoryName: String, comment: String)(implicit config: Config): Unit = Database.withConnection { conn =>
+    Database.withTransaction(conn){
+      val lock = ExclusiveLocks.filter(_.lockKey eq repositoryName).map(t => t.comment ~ t.lockTime).firstOption(conn)
+
+      lock.foreach { case (comment, lockTime) =>
+        throw new RepositoryLockException(
+          s"$repositoryName is already locked since ${new java.util.Date(lockTime).toString}: ${comment.getOrElse("")}"
+        )
+      }
+
+      ExclusiveLocks.insert(ExclusiveLock(repositoryName, if(comment.isEmpty) Some(comment) else None, System.currentTimeMillis))
+    }
   }
 
-  private def _execute[T](conn: Connection, repositoryName: String, comment: String, retryConfig: Config.RepositoryLock, retry: Int)
-                         (action: => T): T = {
+  def unlock(repositoryName: String)(implicit config: Config): Unit = Database.withConnection { conn =>
+    Database.withTransaction(conn){
+      ExclusiveLocks.delete().filter(_.lockKey eq repositoryName).execute(conn)
+    }
+  }
+
+  def execute[T](repositoryName: String, comment: String)(action: => T)(implicit config: Config): T = {
+    _execute(repositoryName, comment, config.repositoryLock, 0)(action)
+  }
+
+  private def _execute[T](repositoryName: String, comment: String, retryConfig: Config.RepositoryLock, retry: Int)
+                         (action: => T)(implicit config: Config): T = {
     try {
       try {
-        Database.withTransaction(conn){
-          val lock = ExclusiveLocks.filter(_.lockKey eq repositoryName).map(t => t.comment ~ t.lockTime).firstOption(conn)
-
-          lock.foreach { case (comment, lockTime) =>
-            throw new RepositoryLockException(
-              s"$repositoryName is already locked since ${new java.util.Date(lockTime).toString}: ${comment.getOrElse("")}"
-            )
-          }
-
-          ExclusiveLocks.insert(ExclusiveLock(repositoryName, if(comment.isEmpty) Some(comment) else None, System.currentTimeMillis))
-        }
-
+        lock(repositoryName, comment)
         try {
           action
         } catch {
           case e: Exception => throw new ActionException(e)
         }
       } finally {
-        Database.withTransaction(conn){
-          ExclusiveLocks.delete().filter(_.lockKey eq repositoryName).execute(conn)
-        }
+        unlock(repositoryName)
       }
     } catch {
       case e: ActionException => throw e.getCause
       case _: Exception if retry < retryConfig.maxRetry =>
         Thread.sleep(retryConfig.retryInterval)
         log.info(s"Retry to get lock for $repositoryName")
-        _execute(conn, repositoryName, comment, retryConfig, retry + 1)(action)
+        _execute(repositoryName, comment, retryConfig, retry + 1)(action)
     }
   }
 

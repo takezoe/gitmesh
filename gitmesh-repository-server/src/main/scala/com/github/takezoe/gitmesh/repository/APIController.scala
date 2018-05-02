@@ -136,7 +136,13 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
       log.info(s"Synchronize repository: $repositoryName with ${remoteUrl}")
 
       // Push all to the remote repository (with lock)
-      // TODO get exclusive lock to the repository
+      httpPost(
+        config.controllerUrl.map { controllerUrl =>
+          s"${controllerUrl}/api/repos/$repositoryName/_lock"
+        },
+        Map.empty
+      )
+
       gitPushAll(repositoryName, remoteUrl)
 
       // write timestamp

@@ -129,10 +129,24 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
     }
   }
 
+  @SystemAPI
   @Action(method = "POST", path = "/api/repos/{repositoryName}/_synced")
   def repositorySynchronized(repositoryName: String, request: SynchronizedRequest): Unit = {
     dataStore.updateNodeRepository(request.nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
+    RepositoryLock.unlock(repositoryName)
   }
+
+  @SystemAPI
+  @Action(method = "POST", path = "/api/repos/{repositoryName}/_lock")
+  def lockRepository(repositoryName: String): Unit = {
+    RepositoryLock.lock(repositoryName, "Lock by API")
+  }
+
+//  @SystemAPI
+//  @Action(method = "POST", path = "/api/repos/{repositoryName}/_unlock")
+//  def unlockRepository(repositoryName: String): Unit = {
+//    RepositoryLock.unlock(repositoryName)
+//  }
 
 }
 
