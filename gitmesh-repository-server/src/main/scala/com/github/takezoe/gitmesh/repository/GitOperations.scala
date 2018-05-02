@@ -37,4 +37,14 @@ trait GitOperations {
     }
   }
 
+  def gitPushAll(repositoryName: String, targetUrl: String)(implicit config: Config): Unit = {
+    Thread.sleep(60000)
+
+    using(Git.open(new File(config.directory, repositoryName))){ git =>
+      if(git.getRepository.resolve(Constants.HEAD) != null){
+        git.push().setRemote(targetUrl).setPushAll().call()
+      }
+    }
+  }
+
 }

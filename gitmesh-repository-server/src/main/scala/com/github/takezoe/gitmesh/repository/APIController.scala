@@ -6,6 +6,9 @@ import com.github.takezoe.resty._
 import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global // TODO use independent execution context for IO
+
 class APIController(implicit val config: Config) extends HttpClientSupport with GitOperations {
 
   private val log = LoggerFactory.getLogger(classOf[APIController])
@@ -84,34 +87,83 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
     }
   }
 
-  @Action(method = "PUT", path = "/api/repos/{repositoryName}")
+  @Action(method = "PUT", path = "/api/repos/{repositoryName}/_clone")
   def cloneRepository(repositoryName: String, request: CloneRequest,
                       @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Unit = {
-    val cloneUrl = s"${config.url}/git/$repositoryName.git"
-    log.info(s"Synchronize repository: $repositoryName with ${cloneUrl}")
+    Future {
+      val remoteUrl = s"${config.url}/git/$repositoryName.git"
+      log.info(s"Clone repository: $repositoryName from ${remoteUrl}")
 
-    // Delete the repository directory if it exists
-    val dir = new File(config.directory, repositoryName)
-    if(dir.exists){
-      FileUtils.forceDelete(dir)
+      // Delete the repository directory if it exists
+      val dir = new File(config.directory, repositoryName)
+      if(dir.exists){
+        FileUtils.forceDelete(dir)
+      }
+
+      if(request.empty){
+        log.info("Create empty repository")
+
+        // Create an empty repository
+        gitInit(repositoryName)
+
+        // write timestamp
+        val file = new File(config.directory, s"$repositoryName.id")
+        FileUtils.write(file, timestamp.toString, "UTF-8")
+
+      } else {
+        log.info("Clone repository")
+        // Clone the remote repository (without lock)
+        gitClone(repositoryName, remoteUrl)
+
+        // Request second phase to the primary node
+        httpPutJson(
+          s"${request.nodeUrl}/api/repos/$repositoryName/_sync",
+          SynchronizeRequest(config.url),
+          builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
+        )
+      }
     }
 
-    // Clone
-    httpGet[Repository](s"${request.nodeUrl}/api/repos/$repositoryName") match {
-      case Left(e) => throw new RuntimeException(e.errors.mkString("\n"))
-      // Source is an empty repository
-      case Right(x) if x.empty => gitInit(repositoryName)
-      // Clone from the source repository
-      case _ => gitClone(repositoryName, cloneUrl)
+    ()
+  }
+
+  @Action(method = "PUT", path = "/api/repos/{repositoryName}/_sync")
+  def synchronizeRepository(repositoryName: String, request: SynchronizeRequest,
+                            @Param(from = "header", name = "GITMESH-UPDATE-ID") timestamp: Long): Unit = {
+
+    Future {
+      val remoteUrl = s"${request.nodeUrl}/git/$repositoryName.git"
+      log.info(s"Synchronize repository: $repositoryName with ${remoteUrl}")
+
+      // Push all to the remote repository (with lock)
+      httpPost(
+        config.controllerUrl.map { controllerUrl =>
+          s"${controllerUrl}/api/repos/$repositoryName/_lock"
+        },
+        Map.empty
+      )
+
+      gitPushAll(repositoryName, remoteUrl)
+
+      // write timestamp
+      val file = new File(config.directory, s"$repositoryName.id")
+      FileUtils.write(file, timestamp.toString, "UTF-8")
+
+      httpPostJson(
+        config.controllerUrl.map { controllerUrl =>
+          s"${controllerUrl}/api/repos/$repositoryName/_synced"
+        },
+        SynchronizedRequest(request.nodeUrl)
+      )
     }
 
-    // write timestamp
-    val file = new File(config.directory, s"$repositoryName.id")
-    FileUtils.write(file, timestamp.toString, "UTF-8")
+    ()
   }
 
 }
 
 case class Status(url: String, diskUsage: Double, repos: Seq[String])
-case class CloneRequest(nodeUrl: String)
+case class CloneRequest(nodeUrl: String, empty: Boolean)
+case class SynchronizeRequest(nodeUrl: String)
+case class SynchronizedRequest(nodeUrl: String)
 case class Repository(name: String, empty: Boolean)

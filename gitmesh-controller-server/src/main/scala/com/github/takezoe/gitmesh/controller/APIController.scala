@@ -4,7 +4,9 @@ import javax.servlet.http.HttpServletResponse
 
 import com.github.takezoe.resty._
 import org.slf4j.LoggerFactory
-import APIController._
+import com.github.takezoe.gitmesh.controller.models.NodeRepositoryStatus
+
+import api._
 
 class APIController(dataStore: DataStore)(implicit val config: Config) extends HttpClientSupport {
 
@@ -21,10 +23,8 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
   }
 
   @Action(method = "GET", path = "/api/nodes")
-  def listNodes(response: HttpServletResponse): Seq[Node] = {
-    dataStore.allNodes().map { case (node, status) =>
-      Node(node, status.diskUsage, status.repos)
-    }
+  def listNodes(response: HttpServletResponse): Seq[NodeStatus] = {
+    dataStore.allNodes()
   }
 
   @Action(method = "GET", path = "/api/repos")
@@ -41,14 +41,14 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
   def deleteRepository(repositoryName: String, response: HttpServletResponse): Unit = {
     dataStore
       .getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
-      .foreach { nodeUrl =>
+      .foreach { node =>
         try {
           // Delete a repository from the node
-          httpDelete[String](s"$nodeUrl/api/repos/$repositoryName")
+          httpDelete[String](s"${node.url}/api/repos/$repositoryName")
           // Delete from NODE_REPOSITORY
-          dataStore.deleteRepository(nodeUrl, repositoryName)
+          dataStore.deleteRepository(node.url, repositoryName)
         } catch {
-          case e: Exception => log.error(s"Failed to delete repository $repositoryName on $nodeUrl", e)
+          case e: Exception => log.error(s"Failed to delete repository $repositoryName on ${node.url}", e)
         }
       }
 
@@ -64,30 +64,30 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
       BadRequest(ErrorModel(Seq("Repository already exists.")))
 
     } else {
-      val nodeUrls = dataStore.allNodes()
-        .filter { case (_, status) => status.diskUsage < config.maxDiskUsage }
-        .sortBy { case (_, status) => status.diskUsage }
+      val nodes = dataStore.allNodes()
+        .filter { _.diskUsage < config.maxDiskUsage }
+        .sortBy { _.diskUsage }
         .take(config.replica)
 
-      if(nodeUrls.nonEmpty){
+      if(nodes.nonEmpty){
         RepositoryLock.execute(repositoryName, "create repository"){
           // Insert to REPOSITORY and get timestamp
           val timestamp = dataStore.insertRepository(repositoryName)
 
-          nodeUrls.foreach { case (nodeUrl, _) =>
+          nodes.foreach { node =>
             try {
               // Create a repository on the node
               httpPost(
-                s"$nodeUrl/api/repos/${repositoryName}",
+                s"${node.url}/api/repos/${repositoryName}",
                 Map.empty,
                 builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
               )
               // Insert to NODE_REPOSITORY
-              dataStore.insertNodeRepository(nodeUrl, repositoryName)
+              dataStore.insertNodeRepository(node.url, repositoryName, NodeRepositoryStatus.Ready)
 
             } catch {
               case e: Exception =>
-                log.error(s"Failed to create repository $repositoryName on $nodeUrl", e)
+                log.error(s"Failed to create repository $repositoryName on ${node.url}", e)
             }
           }
 
@@ -99,13 +99,24 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
     }
   }
 
-}
+  @SystemAPI
+  @Action(method = "POST", path = "/api/repos/{repositoryName}/_synced")
+  def repositorySynchronized(repositoryName: String, request: SynchronizedRequest): Unit = {
+    dataStore.updateNodeRepository(request.nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
+    RepositoryLock.unlock(repositoryName)
+  }
 
-object APIController {
-  case class JoinNodeRequest(url: String, diskUsage: Double, repos: Seq[JoinNodeRepository])
-  case class JoinNodeRepository(name: String, timestamp: Long)
+  @SystemAPI
+  @Action(method = "POST", path = "/api/repos/{repositoryName}/_lock")
+  def lockRepository(repositoryName: String): Unit = {
+    RepositoryLock.lock(repositoryName, "Lock by API")
+  }
 
-  case class Node(url: String, diskUsage: Double, repos: Seq[String])
-  case class NodeRepositoryInfo(name: String, status: String)
+//  @SystemAPI
+//  @Action(method = "POST", path = "/api/repos/{repositoryName}/_unlock")
+//  def unlockRepository(repositoryName: String): Unit = {
+//    RepositoryLock.unlock(repositoryName)
+//  }
+
 }
 

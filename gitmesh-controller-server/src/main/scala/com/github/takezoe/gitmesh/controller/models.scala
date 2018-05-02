@@ -5,6 +5,9 @@ object models {
   import com.github.takezoe.tranquil._
   import java.sql.ResultSet
 
+  // Initial value of LAST_UPDATE_TIME column of REPOSITORY table
+  val InitialRepositoryId = -1L
+
   case class Node(nodeUrl: String, lastUpdateTime: Long, diskUsage: Double)
 
   class Nodes extends TableDef[Node]("NODE") {
@@ -29,15 +32,21 @@ object models {
     }
   }
 
-  case class NodeRepository(nodeUrl: String, repositoryName: String)
+  case class NodeRepository(nodeUrl: String, repositoryName: String, status: String)
 
   class NodeRepositories extends TableDef[NodeRepository]("NODE_REPOSITORY") {
     val nodeUrl        = new Column[String](this, "NODE_URL")
     val repositoryName = new Column[String](this, "REPOSITORY_NAME")
+    val status         = new Column[String](this, "STATUS")
 
     override def toModel(rs: ResultSet): NodeRepository = {
-      NodeRepository(nodeUrl.get(rs), repositoryName.get(rs))
+      NodeRepository(nodeUrl.get(rs), repositoryName.get(rs), status.get(rs))
     }
+  }
+
+  object NodeRepositoryStatus {
+    val Preparing = "PREPARING"
+    val Ready = "READY"
   }
 
   case class ExclusiveLock(lockKey: String, comment: Option[String], lockTime: Long)
