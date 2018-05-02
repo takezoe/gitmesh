@@ -45,7 +45,7 @@ $ cd gitmesh-controller-server
 $ sbt ~jetty:start
 ```
 
-The controller server is started on port 8080 in default. Tables are created automatically in the database configured in `application.conf`.
+The controller server is started on port 8081 in default. Tables are created automatically in the database configured in `application.conf`.
 
 ### Start the repository server
 
@@ -56,16 +56,16 @@ $ cd gitmesh-repository-server
 $ sbt ~jetty:start
 ```
 
-The repository server is started on port 8081 in default.
+The repository server is started on port 8082 in default.
 
 ### Check the cluster operation
 
 Let's create a new repository and push a commit using `git` command to check the cluster operation.
 
-You can create a new repository via Web API. In this case, a repository url is `http://localhost:8080/git/test.git`.
+You can create a new repository via Web API. In this case, a repository url is `http://localhost:8081/git/test.git`.
 
 ```
-$ curl -XPOST http://localhost:8080/api/repos/test
+$ curl -XPOST http://localhost:8081/api/repos/test
 ```
 
 Create a local repository and push a first commit to the remote repository on the cluster:
@@ -77,7 +77,7 @@ $ git init
 $ touch README.md
 $ git add .
 $ git commit -m 'first commit'
-$ git remote add origin http://localhost:8080/git/test.git
+$ git remote add origin http://localhost:8081/git/test.git
 $ git push origin master
 ```
 
