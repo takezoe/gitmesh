@@ -38,7 +38,7 @@ $ docker run --name mysql -e MYSQL_ROOT_PASSWORD=mysql MYSQL_DATABASE=gitmesh -d
 
 ### Start the controller server
 
-Modify `gitmesh-controller-server/src/main/resources/application.conf` for your environment, and run the controller server as following:
+Modify `gitmesh-controller-server/src/main/resources/application.conf` for your environment, and run the controller server as follows:
 
 ```
 $ cd gitmesh-controller-server
@@ -49,7 +49,7 @@ The controller server is started on port 8081 in default. Tables are created aut
 
 ### Start the repository server
 
-Modify `gitmesh-repository-server/src/main/resources/application.conf` for your environment, and run the repository server as following:
+Modify `gitmesh-repository-server/src/main/resources/application.conf` for your environment, and run the repository server as follows:
 
 ```
 $ cd gitmesh-repository-server
@@ -82,3 +82,21 @@ $ git push origin master
 ```
 
 The remote repository is created under the directory configured in the repository server's `application.conf`.
+
+### Web console
+
+gitmesh also offers a web console for administrators.
+
+![Web console](console.png)
+
+Run followng commands to start the web console.
+
+```
+$ cd gitmesh-console
+$ npm install
+$ npm run dev
+```
+
+The web console is available at http://localhost:8080/. You can check repositories and nodes status, and create or delete repositories on this console.
+
+
