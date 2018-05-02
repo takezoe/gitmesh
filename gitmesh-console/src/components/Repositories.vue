@@ -17,8 +17,11 @@
         <td>{{repo.name}}</td>
         <td>http://localhost:8081/git/{{repo.name}}.git</td>
         <td>
-          <div v-for="node in repo.nodes" :key="node">
-            {{node}} <span class="badge badge-primary" v-if="node == repo.primaryNode">Primary</span>
+          <div v-for="node in repo.nodes" :key="node.url">
+            <img src="../assets/bullet_green.png" v-if="node.status == 'READY'">
+            <img src="../assets/bullet_black.png" v-if="node.status == 'PREPARING'">
+            {{node.url}}
+            <span class="badge badge-primary" v-if="node.url == repo.primaryNode">Primary</span>
           </div>
         </td>
         <td class="text-center">

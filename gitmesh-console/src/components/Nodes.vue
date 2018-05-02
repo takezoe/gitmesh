@@ -8,7 +8,11 @@
       </tr>
       <tr v-for="node in nodes" :key="node.url">
         <td>{{node.url}}</td>
-        <td>{{node.repos.length}}</td>
+        <td>
+          <span class="badge badge-primary">Total</span> {{node.repos.length}}&nbsp;&nbsp;
+          <span class="badge badge-success">Ready</span>  {{node.repos.filter(node => node.status == 'READY').length}}&nbsp;&nbsp;
+          <span class="badge badge-secondary">Preparing</span> {{node.repos.filter(node => node.status == 'PREPARING').length}}&nbsp;&nbsp;
+        </td>
         <td>{{node.diskUsage}}</td>
       </tr>
     </table>
