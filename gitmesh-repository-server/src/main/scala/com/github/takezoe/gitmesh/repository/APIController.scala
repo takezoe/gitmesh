@@ -115,6 +115,11 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
         // Clone the remote repository (without lock)
         gitClone(repositoryName, remoteUrl)
 
+        // write timestamp
+        // TODO This should be done after 2nd-phase (push from primary repo) in fact.
+        val file = new File(config.directory, s"$repositoryName.id")
+        FileUtils.write(file, timestamp.toString, "UTF-8")
+
         // Request second phase to the primary node
         httpPutJson(
           s"${request.nodeUrl}/api/repos/$repositoryName/_sync",
@@ -144,10 +149,6 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
       )
 
       gitPushAll(repositoryName, remoteUrl)
-
-      // write timestamp
-      val file = new File(config.directory, s"$repositoryName.id")
-      FileUtils.write(file, timestamp.toString, "UTF-8")
 
       httpPostJson(
         config.controllerUrl.map { controllerUrl =>
