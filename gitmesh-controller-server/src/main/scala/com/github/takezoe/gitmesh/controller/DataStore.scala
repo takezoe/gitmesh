@@ -35,7 +35,7 @@ class DataStore extends HttpClientSupport {
                 if(x.primaryNode.isEmpty){
                   Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repo.name).execute(conn)
                 }
-                NodeRepositories.insert(NodeRepository(nodeUrl, repo.name)).execute(conn)
+                NodeRepositories.insert(NodeRepository(nodeUrl, repo.name, NodeRepositoryStatus.Ready)).execute(conn)
               case _ =>
                 try {
                   httpDelete(s"$nodeUrl/api/repos/${repo.name}") // TODO Check left?
@@ -94,7 +94,7 @@ class DataStore extends HttpClientSupport {
       .groupBy { case node ~ _ => node.nodeUrl }
       .map { case (nodeUrl, seq) =>
         val node = seq.head._1
-        val repos = if(seq.head._2.isEmpty) Nil else seq.map(_._2.map(_.repositoryName).get)
+        val repos = if(seq.head._2.isEmpty) Nil else seq.flatMap(_._2.map(x => NodeStatusRepository(x.repositoryName, x.status)))
         (nodeUrl, NodeStatus(node.lastUpdateTime, node.diskUsage, repos))
       }
       .toSeq
@@ -131,13 +131,19 @@ class DataStore extends HttpClientSupport {
     }
   }
 
-  def insertNodeRepository(nodeUrl: String, repositoryName: String): Unit = Database.withConnection { conn =>
+  def insertNodeRepository(nodeUrl: String, repositoryName: String, status: String): Unit = Database.withConnection { conn =>
     Database.withTransaction(conn){
       if(getRepositoryStatus(repositoryName).map(_.primaryNode.isEmpty).getOrElse(false)){
         Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repositoryName).execute(conn)
       }
       NodeRepositories.delete().filter(t => (t.nodeUrl eq nodeUrl) && (t.repositoryName eq repositoryName)).execute(conn)
-      NodeRepositories.insert(NodeRepository(nodeUrl, repositoryName)).execute(conn)
+      NodeRepositories.insert(NodeRepository(nodeUrl, repositoryName, status)).execute(conn)
+    }
+  }
+
+  def updateNodeRepository(nodeUrl: String, repositoryName: String, status: String): Unit = Database.withConnection { conn =>
+    Database.withTransaction(conn) {
+      NodeRepositories.update(_.status -> status).filter(t => (t.nodeUrl eq nodeUrl) && (t.repositoryName eq repositoryName)).execute(conn)
     }
   }
 
@@ -145,8 +151,8 @@ class DataStore extends HttpClientSupport {
     val repos = Repositories.filter(_.repositoryName eq repositoryName).firstOption(conn)
 
     repos.map { repo =>
-      val nodes = NodeRepositories.filter(_.repositoryName eq repositoryName).map(_.nodeUrl).list(conn)
-      RepositoryInfo(repositoryName, repo.primaryNode, repo.lastUpdateTime, nodes)
+      val nodes = NodeRepositories.filter(_.repositoryName eq repositoryName).list(conn)
+      RepositoryInfo(repositoryName, repo.primaryNode, repo.lastUpdateTime, nodes.map(x => RepositoryNodeInfo(x.nodeUrl, x.status)))
     }
   }
 
@@ -157,7 +163,7 @@ class DataStore extends HttpClientSupport {
       .groupBy { case repo ~ node => repo.repositoryName }
       .map { case (repositoryName, seq) =>
         val repo = seq.head._1
-        val nodes = if(seq.head._2.isEmpty) Nil else seq.map(_._2.map(_.nodeUrl).get)
+        val nodes = if(seq.head._2.isEmpty) Nil else seq.flatMap(_._2.map(x => RepositoryNodeInfo(x.nodeUrl, x.status)))
         RepositoryInfo(repositoryName, repo.primaryNode, repo.lastUpdateTime, nodes)
       }
       .toSeq
@@ -173,7 +179,8 @@ class DataStore extends HttpClientSupport {
 
 }
 
-case class RepositoryInfo(name: String, primaryNode: Option[String], timestamp: Long, nodes: Seq[String])
-case class RepositoryNode(nodeUrl: String, status: String)
+case class RepositoryInfo(name: String, primaryNode: Option[String], timestamp: Long, nodes: Seq[RepositoryNodeInfo])
+case class RepositoryNodeInfo(nodeUrl: String, status: String)
 
-case class NodeStatus(timestamp: Long, diskUsage: Double, repos: Seq[String])
+case class NodeStatus(timestamp: Long, diskUsage: Double, repos: Seq[NodeStatusRepository])
+case class NodeStatusRepository(repositoryName: String, status: String)

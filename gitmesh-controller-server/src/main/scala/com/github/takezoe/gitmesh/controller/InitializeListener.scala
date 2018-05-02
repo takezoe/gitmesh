@@ -138,14 +138,14 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
         if(timestamp == InitialRepositoryId){
           log.info("Create empty repository")
           // Repository is empty
-          RepositoryLock.execute(repositoryName, "create replica") {  // TODO shared lock?
+          RepositoryLock.execute(repositoryName, "create replica") {  // TODO need shared lock?
             httpPutJson(
               s"$nodeUrl/api/repos/${repositoryName}/_clone",
               CloneRequest(primaryNode, true),
               builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
             )
             // Insert a node record here because cloning an empty repository is proceeded as 1-phase.
-            dataStore.insertNodeRepository(nodeUrl, repositoryName)
+            dataStore.insertNodeRepository(nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
           }
         } else {
           log.info("Clone repository")
@@ -155,6 +155,8 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
             CloneRequest(primaryNode, false),
             builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
           )
+          // Insert a node record as PREPARING status here, updated to READY later
+          dataStore.insertNodeRepository(nodeUrl, repositoryName, NodeRepositoryStatus.Preparing)
         }
       }
     }

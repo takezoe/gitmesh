@@ -4,6 +4,8 @@ import java.io.{File, FileOutputStream}
 import java.util.concurrent.atomic.AtomicReference
 import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
+import com.github.takezoe.gitmesh.controller.models.NodeRepositoryStatus
+
 import scala.collection.JavaConverters._
 import okhttp3.{MediaType, OkHttpClient, Request, RequestBody}
 import org.apache.commons.io.{FileUtils, IOUtils}
@@ -41,9 +43,10 @@ class GitRepositoryProxyServer extends HttpServlet {
       val timestamp = System.currentTimeMillis
       dataStore.updateRepositoryTimestamp(repositoryName, timestamp)
       // Get relay destinations
-      val nodeUrls = dataStore.getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
+      val nodes = dataStore.getRepositoryStatus(repositoryName)
+        .map(_.nodes).getOrElse(Nil).filter(_.status == NodeRepositoryStatus.Ready)
 
-      if (nodeUrls.nonEmpty) {
+      if (nodes.nonEmpty) {
         val tmpFile = File.createTempFile("gitmesh", "tmpfile")
         try {
           using(req.getInputStream, new FileOutputStream(tmpFile)) { (in, out) =>
@@ -52,8 +55,8 @@ class GitRepositoryProxyServer extends HttpServlet {
 
           var responded = false
 
-          nodeUrls.foreach { nodeUrl =>
-            val builder = new Request.Builder().url(nodeUrl + path + (if (queryString == null) "" else "?" + queryString))
+          nodes.foreach { node =>
+            val builder = new Request.Builder().url(node.nodeUrl + path + (if (queryString == null) "" else "?" + queryString))
 
             req.getHeaderNames.asScala.foreach { name =>
               builder.addHeader(name, req.getHeader(name))
@@ -79,8 +82,8 @@ class GitRepositoryProxyServer extends HttpServlet {
             } catch {
               // If request failed remove the node
               case e: Exception =>
-                log.error(s"Remove node $nodeUrl by error: ${e.toString}")
-                dataStore.removeNode(nodeUrl)
+                log.error(s"Remove node ${node.nodeUrl} by error: ${e.toString}")
+                dataStore.removeNode(node.nodeUrl)
             }
           }
         } finally {

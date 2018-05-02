@@ -5,6 +5,7 @@ import javax.servlet.http.HttpServletResponse
 import com.github.takezoe.resty._
 import org.slf4j.LoggerFactory
 import APIController._
+import com.github.takezoe.gitmesh.controller.models.NodeRepositoryStatus
 
 class APIController(dataStore: DataStore)(implicit val config: Config) extends HttpClientSupport {
 
@@ -35,7 +36,7 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
     }
 
     dataStore.allNodes().map { case (node, status) =>
-      Node(node, status.diskUsage, status.repos)
+      Node(node, status.diskUsage, status.repos.map(x => NodeRepositoryInfo(x.repositoryName, x.status)))
     }
   }
 
@@ -47,7 +48,7 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
       }
     }
 
-    dataStore.allRepositories()
+    dataStore.allRepositories() // TODO Define another models for response?
   }
 
   @Action(method = "POST", path = "/api/repos/{repositoryName}/_delete")
@@ -65,14 +66,14 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
 
     dataStore
       .getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
-      .foreach { nodeUrl =>
+      .foreach { node =>
         try {
           // Delete a repository from the node
-          httpDelete[String](s"$nodeUrl/api/repos/$repositoryName")
+          httpDelete[String](s"${node.nodeUrl}/api/repos/$repositoryName")
           // Delete from NODE_REPOSITORY
-          dataStore.deleteRepository(nodeUrl, repositoryName)
+          dataStore.deleteRepository(node.nodeUrl, repositoryName)
         } catch {
-          case e: Exception => log.error(s"Failed to delete repository $repositoryName on $nodeUrl", e)
+          case e: Exception => log.error(s"Failed to delete repository $repositoryName on ${node.nodeUrl}", e)
         }
       }
 
@@ -113,7 +114,7 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
                 builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
               )
               // Insert to NODE_REPOSITORY
-              dataStore.insertNodeRepository(nodeUrl, repositoryName)
+              dataStore.insertNodeRepository(nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
 
             } catch {
               case e: Exception =>
@@ -132,7 +133,7 @@ class APIController(dataStore: DataStore)(implicit val config: Config) extends H
   @Action(method = "POST", path = "/api/repos/{repositoryName}/_synced")
   def repositorySynchronized(repositoryName: String, request: SynchronizeRequest): Unit = {
     println("**** synced!! " + request.nodeUrl)
-    dataStore.insertNodeRepository(request.nodeUrl, repositoryName)
+    dataStore.updateNodeRepository(request.nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
   }
 
 }
@@ -141,7 +142,7 @@ object APIController {
   case class JoinNodeRequest(url: String, diskUsage: Double, repos: Seq[JoinNodeRepository])
   case class JoinNodeRepository(name: String, timestamp: Long)
 
-  case class Node(url: String, diskUsage: Double, repos: Seq[String])
+  case class Node(url: String, diskUsage: Double, repos: Seq[NodeRepositoryInfo])
   case class NodeRepositoryInfo(name: String, status: String)
 
   case class SynchronizeRequest(nodeUrl: String)
