@@ -85,7 +85,7 @@ The remote repository is created under the directory configured in the repositor
 
 ### Web console
 
-gitmesh also offers a web console for administrators.
+gitmesh also offers a [web console](https://github.com/takezoe/gitmesh/tree/master/gitmesh-console) for administrators.
 
 ![Web console](console.png)
 
