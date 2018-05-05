@@ -1,13 +1,13 @@
 package com.github.takezoe.gitmesh.controller
 
-import com.github.takezoe.resty.HttpClientSupport
+//import com.github.takezoe.resty.HttpClientSupport
 import org.slf4j.LoggerFactory
 import com.github.takezoe.tranquil._
 import com.github.takezoe.tranquil.Dialect.mysql
 import models._
 import api._
 
-class DataStore extends HttpClientSupport {
+class DataStore /*extends HttpClientSupport*/ {
 
   private val log = LoggerFactory.getLogger(getClass)
 
@@ -38,11 +38,11 @@ class DataStore extends HttpClientSupport {
                 }
                 NodeRepositories.insert(NodeRepository(nodeUrl, repo.name, NodeRepositoryStatus.Ready)).execute(conn)
               case _ =>
-                try {
-                  httpDelete(s"$nodeUrl/api/repos/${repo.name}") // TODO Check left?
-                } catch {
-                  case e: Exception => log.error(s"Failed to delete repository ${repo.name} from $nodeUrl", e)
-                }
+//                try {
+//                  httpDelete(s"$nodeUrl/api/repos/${repo.name}") // TODO Check left?
+//                } catch {
+//                  case e: Exception => log.error(s"Failed to delete repository ${repo.name} from $nodeUrl", e)
+//                }
             }
           }
         }

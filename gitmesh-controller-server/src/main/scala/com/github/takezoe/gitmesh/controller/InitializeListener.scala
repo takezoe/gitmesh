@@ -19,7 +19,7 @@ import models._
 import api._
 import syntax._
 
-@WebListener
+//@WebListener
 class InitializeListener extends ServletContextListener {
 
   private val system = ActorSystem("mySystem")
@@ -58,13 +58,13 @@ class InitializeListener extends ServletContextListener {
         conn,
         Thread.currentThread.getContextClassLoader,
         liquibaseDriver(config.database.url),
-        GitMeshMigrationModule
+        Migration
       )
       conn.commit()
     }
 
     // Setup controllers
-    Resty.register(new APIController(dataStore))
+    //Resty.register(new APIController(dataStore))
 
     // Start background jobs
     val scheduler = QuartzSchedulerExtension(system)
@@ -95,72 +95,72 @@ class InitializeListener extends ServletContextListener {
 
 }
 
-object GitMeshMigrationModule extends Module("gitmesh",
-  new Version("1.0.0", new LiquibaseMigration("update/gitmesh-database-1.0.0.xml"))
-)
+//object GitMeshMigrationModule extends Module("gitmesh",
+//  new Version("1.0.0", new LiquibaseMigration("update/gitmesh-database-1.0.0.xml"))
+//)
 
-class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore) extends Actor with HttpClientSupport {
-
-  private val log = Logging(context.system, this)
-  implicit override val httpClientConfig = config.httpClient
-
-  override def receive = {
-    case _ => {
-      if(ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)){
-        // Check dead nodes
-        val timeout = System.currentTimeMillis() - config.deadDetectionPeriod.node
-
-        dataStore.allNodes().foreach { node =>
-          if(node.timestamp < timeout){
-            log.warning(s"${node.url} is retired.")
-            dataStore.removeNode(node.url)
-          }
-        }
-
-        // Create replica
-        val repos = dataStore.allRepositories()
-
-        repos.filter { x => x.nodes.size < config.replica }.foreach { x =>
-          x.primaryNode.foreach { primaryNode =>
-            createReplicas(primaryNode, x.name, x.timestamp, x.nodes.size)
-          }
-        }
-      }
-    }
-  }
-
-  private def createReplicas(primaryNode: String, repositoryName: String, timestamp: Long, enabledNodes: Int): Unit = {
-    val lackOfReplicas = config.replica - enabledNodes
-
-    (1 to lackOfReplicas).foreach { _ =>
-      dataStore.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
-        log.info(s"Create replica of ${repositoryName} at $nodeUrl")
-
-        if(timestamp == InitialRepositoryId){
-          log.info("Create empty repository")
-          // Repository is empty
-          RepositoryLock.execute(repositoryName, "create replica") {  // TODO need shared lock?
-            httpPutJson(
-              s"$nodeUrl/api/repos/${repositoryName}/_clone",
-              CloneRequest(primaryNode, true),
-              builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
-            )
-            // Insert a node record here because cloning an empty repository is proceeded as 1-phase.
-            dataStore.insertNodeRepository(nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
-          }
-        } else {
-          log.info("Clone repository")
-          // Repository is not empty.
-          httpPutJson(
-            s"$nodeUrl/api/repos/${repositoryName}/_clone",
-            CloneRequest(primaryNode, false),
-            builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
-          )
-          // Insert a node record as PREPARING status here, updated to READY later
-          dataStore.insertNodeRepository(nodeUrl, repositoryName, NodeRepositoryStatus.Preparing)
-        }
-      }
-    }
-  }
-
-}
+//class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore) extends Actor with HttpClientSupport {
+//
+//  private val log = Logging(context.system, this)
+//  //implicit override val httpClientConfig = config.httpClient
+//
+//  override def receive = {
+//    case _ => {
+//      if(ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)){
+//        // Check dead nodes
+//        val timeout = System.currentTimeMillis() - config.deadDetectionPeriod.node
+//
+//        dataStore.allNodes().foreach { node =>
+//          if(node.timestamp < timeout){
+//            log.warning(s"${node.url} is retired.")
+//            dataStore.removeNode(node.url)
+//          }
+//        }
+//
+//        // Create replica
+//        val repos = dataStore.allRepositories()
+//
+//        repos.filter { x => x.nodes.size < config.replica }.foreach { x =>
+//          x.primaryNode.foreach { primaryNode =>
+//            createReplicas(primaryNode, x.name, x.timestamp, x.nodes.size)
+//          }
+//        }
+//      }
+//    }
+//  }
+//
+//  private def createReplicas(primaryNode: String, repositoryName: String, timestamp: Long, enabledNodes: Int): Unit = {
+//    val lackOfReplicas = config.replica - enabledNodes
+//
+//    (1 to lackOfReplicas).foreach { _ =>
+//      dataStore.getUrlOfAvailableNode(repositoryName).map { nodeUrl =>
+//        log.info(s"Create replica of ${repositoryName} at $nodeUrl")
+//
+//        if(timestamp == InitialRepositoryId){
+//          log.info("Create empty repository")
+//          // Repository is empty
+//          RepositoryLock.execute(repositoryName, "create replica") {  // TODO need shared lock?
+//            httpPutJson(
+//              s"$nodeUrl/api/repos/${repositoryName}/_clone",
+//              CloneRequest(primaryNode, true),
+//              builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
+//            )
+//            // Insert a node record here because cloning an empty repository is proceeded as 1-phase.
+//            dataStore.insertNodeRepository(nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
+//          }
+//        } else {
+//          log.info("Clone repository")
+//          // Repository is not empty.
+//          httpPutJson(
+//            s"$nodeUrl/api/repos/${repositoryName}/_clone",
+//            CloneRequest(primaryNode, false),
+//            builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
+//          )
+//          // Insert a node record as PREPARING status here, updated to READY later
+//          dataStore.insertNodeRepository(nodeUrl, repositoryName, NodeRepositoryStatus.Preparing)
+//        }
+//      }
+//    }
+//  }
+//
+//}

@@ -3,7 +3,7 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
          version="3.0">
-
+  <!--
   <servlet>
     <servlet-name>GitRepositoryProxyServer</servlet-name>
     <servlet-class>com.github.takezoe.gitmesh.controller.GitRepositoryProxyServer</servlet-class>
@@ -13,7 +13,7 @@
     <servlet-name>GitRepositoryProxyServer</servlet-name>
     <url-pattern>/git/*</url-pattern>
   </servlet-mapping>
-
+  -->
   <context-param>
     <param-name>resty.swagger</param-name>
     <param-value>enable</param-value>
@@ -56,5 +56,4 @@
     <param-name>resty.cors</param-name>
     <param-value>enable</param-value>
   </context-param>
-
 </web-app>
