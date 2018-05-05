@@ -1,8 +1,7 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.util
 
-import com.github.takezoe.resty.HttpClientConfig
+import com.github.takezoe.gitmesh.controller.util.Config._
 import com.typesafe.config.ConfigFactory
-import Config._
 
 case class Config(
   url: String,

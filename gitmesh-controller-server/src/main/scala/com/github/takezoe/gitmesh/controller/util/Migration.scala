@@ -1,4 +1,4 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.util
 
 import io.github.gitbucket.solidbase.migration.LiquibaseMigration
 import io.github.gitbucket.solidbase.model.{Module, Version}

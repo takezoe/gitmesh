@@ -1,11 +1,12 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.data
 
 //import com.github.takezoe.resty.HttpClientSupport
-import org.slf4j.LoggerFactory
-import com.github.takezoe.tranquil._
+import com.github.takezoe.gitmesh.controller.api.models._
+import com.github.takezoe.gitmesh.controller.data.models._
+import com.github.takezoe.gitmesh.controller.util.{Config, RepositoryLock}
 import com.github.takezoe.tranquil.Dialect.mysql
-import models._
-import api._
+import com.github.takezoe.tranquil._
+import org.slf4j.LoggerFactory
 
 class DataStore /*extends HttpClientSupport*/ {
 

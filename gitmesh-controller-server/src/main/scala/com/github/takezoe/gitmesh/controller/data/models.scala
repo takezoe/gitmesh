@@ -1,9 +1,10 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.data
 
 object models {
 
-  import com.github.takezoe.tranquil._
   import java.sql.ResultSet
+
+  import com.github.takezoe.tranquil._
 
   // Initial value of LAST_UPDATE_TIME column of REPOSITORY table
   val InitialRepositoryId = -1L

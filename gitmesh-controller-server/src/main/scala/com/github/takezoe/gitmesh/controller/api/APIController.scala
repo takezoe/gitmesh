@@ -1,12 +1,12 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.api
 
 import javax.servlet.http.HttpServletResponse
 
 import com.github.takezoe.resty._
 import org.slf4j.LoggerFactory
-import com.github.takezoe.gitmesh.controller.models.NodeRepositoryStatus
+import com.github.takezoe.gitmesh.controller.data.models.NodeRepositoryStatus
 
-import api._
+import com.github.takezoe.gitmesh.controller.api.models._
 
 //class APIController(dataStore: DataStore)(implicit val config: Config) extends HttpClientSupport {
 //

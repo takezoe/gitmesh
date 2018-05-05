@@ -1,4 +1,4 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.util
 
 object syntax {
 

@@ -6,7 +6,7 @@
   <!--
   <servlet>
     <servlet-name>GitRepositoryProxyServer</servlet-name>
-    <servlet-class>com.github.takezoe.gitmesh.controller.GitRepositoryProxyServer</servlet-class>
+    <servlet-class>com.github.takezoe.gitmesh.controller.servlet.GitRepositoryProxyServer</servlet-class>
   </servlet>
 
   <servlet-mapping>

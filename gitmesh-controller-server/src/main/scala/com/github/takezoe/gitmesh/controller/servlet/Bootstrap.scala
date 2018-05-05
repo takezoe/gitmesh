@@ -1,13 +1,14 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.servlet
 
 import java.sql.Connection
 import javax.servlet.annotation.WebListener
 import javax.servlet.{ServletContextEvent, ServletContextListener}
 
-import akka.actor.Props
-import com.github.takezoe.gitmesh.controller.models.{ExclusiveLocks, NodeRepositories, Nodes, Repositories}
-import com.github.takezoe.gitmesh.controller.syntax.using
-import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
+import com.github.takezoe.gitmesh.controller.api.Routes
+import com.github.takezoe.gitmesh.controller.data.{DataStore, Database}
+import com.github.takezoe.gitmesh.controller.data.models.{ExclusiveLocks, NodeRepositories, Nodes, Repositories}
+import com.github.takezoe.gitmesh.controller.util.{Config, ControllerLock, Migration}
+import com.github.takezoe.gitmesh.controller.util.syntax.using
 import io.github.gitbucket.solidbase.Solidbase
 import liquibase.database.core.{MySQLDatabase, PostgresDatabase, UnsupportedDatabase}
 import org.http4s.servlet.syntax.ServletContextSyntax
@@ -44,7 +45,7 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
       conn.commit()
     }
 
-    context.mountService("helloService", routes.service(dataSource))
+    context.mountService("helloService", Routes.service(dataSource))
 
 //    // Start background jobs
 //    val scheduler = QuartzSchedulerExtension(system)

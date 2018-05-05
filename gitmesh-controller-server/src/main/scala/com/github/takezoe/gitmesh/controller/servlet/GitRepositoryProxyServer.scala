@@ -1,16 +1,18 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.servlet
 
 import java.io.{File, FileOutputStream}
 import java.util.concurrent.atomic.AtomicReference
 import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
-import com.github.takezoe.gitmesh.controller.models.NodeRepositoryStatus
-
-import scala.collection.JavaConverters._
+import com.github.takezoe.gitmesh.controller.data.DataStore
+import com.github.takezoe.gitmesh.controller.data.models.NodeRepositoryStatus
+import com.github.takezoe.gitmesh.controller.util.{Config, RepositoryLock}
+import com.github.takezoe.gitmesh.controller.util.syntax._
 import okhttp3.{MediaType, OkHttpClient, Request, RequestBody}
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.slf4j.LoggerFactory
-import syntax._
+
+import scala.collection.JavaConverters._
 
 object GitRepositoryProxyServer {
 

@@ -1,23 +1,20 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.servlet
 
 import java.sql.Connection
 import javax.servlet.{ServletContextEvent, ServletContextListener}
-import javax.servlet.annotation.WebListener
 
-import com.github.takezoe.resty._
-import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
 import akka.actor._
-import akka.event.Logging
+import com.github.takezoe.gitmesh.controller.data.{DataStore, Database}
+import com.github.takezoe.gitmesh.controller.data.models._
+import com.github.takezoe.gitmesh.controller.job.CheckRepositoryNodeActor
+import com.github.takezoe.gitmesh.controller.util.{Config, ControllerLock, Migration}
+import com.github.takezoe.gitmesh.controller.util.syntax._
+import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
 import io.github.gitbucket.solidbase.Solidbase
+import liquibase.database.core._
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import io.github.gitbucket.solidbase.migration.LiquibaseMigration
-import io.github.gitbucket.solidbase.model.{Module, Version}
-import liquibase.database.core._
-import models._
-import api._
-import syntax._
 
 //@WebListener
 class InitializeListener extends ServletContextListener {

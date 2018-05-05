@@ -1,18 +1,18 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.api
 
 import cats.effect.IO
+import com.github.takezoe.gitmesh.controller.data.DataStore
 import io.circe._
-import org.http4s.{HttpService, _}
+import org.http4s.HttpService
 import org.http4s.circe._
 import org.http4s.dsl.io._
-import org.http4s.implicits._
 //import org.http4s._
 //import org.http4s.circe._
 //import org.http4s.dsl.Http4sDsl
-import io.circe.syntax._
 import io.circe.generic.auto._
+import io.circe.syntax._
 
-object routes {
+object Routes {
 
   def service(dataStore: DataStore) = HttpService[IO] {
     case GET -> Root / "hello" / name =>

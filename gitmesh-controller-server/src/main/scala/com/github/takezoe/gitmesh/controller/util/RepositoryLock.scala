@@ -1,11 +1,10 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.util
 
-import java.sql.Connection
-
-import org.slf4j.LoggerFactory
-import models._
-import com.github.takezoe.tranquil._
+import com.github.takezoe.gitmesh.controller.data.models.{ExclusiveLock, ExclusiveLocks}
+import com.github.takezoe.gitmesh.controller.data.Database
 import com.github.takezoe.tranquil.Dialect.mysql
+import com.github.takezoe.tranquil._
+import org.slf4j.LoggerFactory
 
 /**
  * Offers the locking mechanism for a repository.

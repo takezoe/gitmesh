@@ -1,8 +1,10 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.data
 
 import java.sql.Connection
+
+import com.github.takezoe.gitmesh.controller.util.Config
+import com.github.takezoe.gitmesh.controller.util.syntax._
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
-import syntax._
 
 object Database {
 

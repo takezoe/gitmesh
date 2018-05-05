@@ -1,9 +1,11 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.job
 
 import akka.actor.Actor
 import akka.event.Logging
-import com.github.takezoe.gitmesh.controller.api._
-import com.github.takezoe.gitmesh.controller.models._
+import com.github.takezoe.gitmesh.controller.api.models._
+import com.github.takezoe.gitmesh.controller.data.DataStore
+import com.github.takezoe.gitmesh.controller.data.models._
+import com.github.takezoe.gitmesh.controller.util.{Config, ControllerLock, RepositoryLock}
 import com.github.takezoe.resty.HttpClientSupport
 
 class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore) extends Actor with HttpClientSupport {
