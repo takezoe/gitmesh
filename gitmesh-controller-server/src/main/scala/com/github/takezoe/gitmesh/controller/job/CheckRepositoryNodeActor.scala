@@ -2,16 +2,26 @@ package com.github.takezoe.gitmesh.controller.job
 
 import akka.actor.Actor
 import akka.event.Logging
+import cats.effect.IO
 import com.github.takezoe.gitmesh.controller.api.models._
 import com.github.takezoe.gitmesh.controller.data.DataStore
 import com.github.takezoe.gitmesh.controller.data.models._
 import com.github.takezoe.gitmesh.controller.util.{Config, ControllerLock, RepositoryLock}
-import com.github.takezoe.resty.HttpClientSupport
+import org.http4s.client.Client
+import org.http4s.dsl.io._
+import io.circe._
+import org.http4s._
+import org.http4s.circe._
+import org.slf4j.LoggerFactory
+import io.circe.generic.auto._
+import io.circe.jawn.CirceSupportParser
+import io.circe.syntax._
+import org.http4s.client.dsl.io._
 
-class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore) extends Actor with HttpClientSupport {
+class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore, httpClient: Client[IO]) extends Actor {
 
   private val log = Logging(context.system, this)
-  //implicit override val httpClientConfig = config.httpClient
+
 
   override def receive = {
     case _ => {
@@ -48,23 +58,23 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
         if(timestamp == InitialRepositoryId){
           log.info("Create empty repository")
           // Repository is empty
-          RepositoryLock.execute(repositoryName, "create replica") {  // TODO need shared lock?
-            httpPutJson(
-              s"$nodeUrl/api/repos/${repositoryName}/_clone",
-              CloneRequest(primaryNode, true),
-              builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
-            )
+          RepositoryLock.execute(repositoryName, "create replica") {
+            httpClient.expect[String](PUT(
+              Uri.fromString(s"$nodeUrl/api/repos/${repositoryName}/_clone").toTry.get,
+              CloneRequest(primaryNode, true).asJson,
+              Header("GITMESH-UPDATE-ID", timestamp.toString)
+            )).unsafeRunSync()
             // Insert a node record here because cloning an empty repository is proceeded as 1-phase.
             dataStore.insertNodeRepository(nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
           }
         } else {
           log.info("Clone repository")
           // Repository is not empty.
-          httpPutJson(
-            s"$nodeUrl/api/repos/${repositoryName}/_clone",
-            CloneRequest(primaryNode, false),
-            builder => { builder.addHeader("GITMESH-UPDATE-ID", timestamp.toString) }
-          )
+          httpClient.expect[String](PUT(
+            Uri.fromString(s"$nodeUrl/api/repos/${repositoryName}/_clone").toTry.get,
+            CloneRequest(primaryNode, false).asJson,
+            Header("GITMESH-UPDATE-ID", timestamp.toString)
+          )).unsafeRunSync()
           // Insert a node record as PREPARING status here, updated to READY later
           dataStore.insertNodeRepository(nodeUrl, repositoryName, NodeRepositoryStatus.Preparing)
         }

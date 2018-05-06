@@ -5,18 +5,13 @@ version := "0.1"
 scalaVersion := "2.12.4"
 
 libraryDependencies ++= Seq(
-  //"org.eclipse.jgit"           % "org.eclipse.jgit.http.server" % "4.9.2.201712150930-r",
-  //"org.eclipse.jgit"           % "org.eclipse.jgit.archive"     % "4.9.2.201712150930-r",
   "org.http4s"                %% "http4s-servlet"               % "0.18.10",
   "org.http4s"                %% "http4s-circe"                 % "0.18.10",
   "org.http4s"                %% "http4s-dsl"                   % "0.18.10",
   "org.http4s"                %% "http4s-dsl"                   % "0.18.10",
   "org.http4s"                %% "http4s-blaze-client"          % "0.18.10",
-  "io.circe" %% "circe-generic" % "0.9.3",
-//  "io.circe" %% "circe-literal" % "0.9.3",
-  "com.github.takezoe"        %% "resty"                        % "0.0.17" % "provided",
-  //"com.github.takezoe"        %% "scala-jdbc"                   % "1.0.5",
-  //"com.squareup.okhttp3"         %  "okhttp"                           % "3.9.1",
+  "io.circe"                  %% "circe-generic"                % "0.9.3",
+  "com.squareup.okhttp3"       % "okhttp"                       % "3.9.1",
   "com.github.takezoe"        %% "tranquil"                     % "1.0.1",
   "com.zaxxer"                 % "HikariCP"                     % "2.7.4",
   "io.github.gitbucket"        % "solidbase"                    % "1.0.2",
