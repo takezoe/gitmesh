@@ -15,4 +15,6 @@ object models {
 
   case class CloneRequest(nodeUrl: String, empty: Boolean)
 
+  case class ErrorModel(errors: Seq[String])
+
 }

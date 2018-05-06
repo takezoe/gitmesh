@@ -6,13 +6,17 @@ import javax.servlet.annotation.WebListener
 
 import com.github.takezoe.resty._
 import akka.actor._
+import com.github.takezoe.resty.util.JsonUtils
 import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
+import okhttp3.{Request, RequestBody}
 import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import syntax._
+
+import scala.reflect.ClassTag
 
 @WebListener
 class InitializeListener extends ServletContextListener {
@@ -77,6 +81,14 @@ class HeartBeatSender(config: Config) extends HttpClientSupport {
       case Left(e) => log.error(e.errors.mkString("\n"))
     }
   }
+
+  override def httpPostJson[T](target: RequestTarget, doc: AnyRef, configurer: Request.Builder => Unit = (builder) => ())(implicit c: ClassTag[T]): Either[ErrorModel, T] = {
+    target.execute(httpClient, (url, builder) => {
+      builder.url(url).post(RequestBody.create(HttpClientSupport.ContentType_JSON, JsonUtils.serialize(doc) + "\n"))
+      configurer(builder)
+    }, c.runtimeClass)
+  }
+
 
 }
 
