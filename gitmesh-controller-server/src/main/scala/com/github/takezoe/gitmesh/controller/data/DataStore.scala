@@ -1,6 +1,5 @@
 package com.github.takezoe.gitmesh.controller.data
 
-//import com.github.takezoe.resty.HttpClientSupport
 import com.github.takezoe.gitmesh.controller.api.models._
 import com.github.takezoe.gitmesh.controller.data.models._
 import com.github.takezoe.gitmesh.controller.util.{Config, RepositoryLock}
@@ -8,7 +7,7 @@ import com.github.takezoe.tranquil.Dialect.mysql
 import com.github.takezoe.tranquil._
 import org.slf4j.LoggerFactory
 
-class DataStore /*extends HttpClientSupport*/ {
+class DataStore {
 
   private val log = LoggerFactory.getLogger(getClass)
 
@@ -21,7 +20,7 @@ class DataStore /*extends HttpClientSupport*/ {
     }
   }
 
-  def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[JoinNodeRepository])(implicit config: Config): Unit =
+  def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[JoinNodeRepository])(implicit config: Config): Seq[(JoinNodeRepository, Boolean)] =
     Database.withConnection { conn =>
       log.info(s"Add new node: $nodeUrl")
 
@@ -29,7 +28,7 @@ class DataStore /*extends HttpClientSupport*/ {
         Nodes.insert(Node(nodeUrl, System.currentTimeMillis, diskUsage)).execute(conn)
       }
 
-      repos.foreach { repo =>
+      repos.map { repo =>
         RepositoryLock.execute(repo.name, "add node"){
           Database.withTransaction(conn){
             getRepositoryStatus(repo.name) match  {
@@ -38,12 +37,9 @@ class DataStore /*extends HttpClientSupport*/ {
                   Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repo.name).execute(conn)
                 }
                 NodeRepositories.insert(NodeRepository(nodeUrl, repo.name, NodeRepositoryStatus.Ready)).execute(conn)
+                (repo, true) // added
               case _ =>
-//                try {
-//                  httpDelete(s"$nodeUrl/api/repos/${repo.name}") // TODO Check left?
-//                } catch {
-//                  case e: Exception => log.error(s"Failed to delete repository ${repo.name} from $nodeUrl", e)
-//                }
+                (repo, false) // not added
             }
           }
         }

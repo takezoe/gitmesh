@@ -32,7 +32,17 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
         if(dataStore.existNode(node.url)){
           dataStore.updateNodeStatus(node.url, node.diskUsage)
         } else {
-          dataStore.addNewNode(node.url, node.diskUsage, node.repos)
+          dataStore.addNewNode(node.url, node.diskUsage, node.repos).foreach { case (repo, added) =>
+            if(added == false){
+              try {
+                httpClient.expect[String](DELETE(
+                  Uri.fromString(s"${node.url}/api/repos/${repo.name}").toTry.get
+                )).unsafeRunSync()
+              } catch {
+                case e: Exception => log.error(s"Failed to delete repository ${repo.name} from ${node.url}", e)
+              }
+            }
+          }
         }
       }
       resp <- Ok()
