@@ -48,9 +48,7 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
   def createRepository(repositoryName: String, req: Request[IO]): IO[Response[IO]] = {
     for {
       _ <- logInfo(s"Create repository: $repositoryName")
-      timestamp <- IO {
-        req.headers.get(CaseInsensitiveString("GITMESH-UPDATE-ID")).get.value.toLong
-      }
+      timestamp <- header(req, "GITMESH-UPDATE-ID").map(_.toLong)
       // Delete the repository directory if it exists
       _ <- deleteDir(new File(config.directory, repositoryName))
       // git init
