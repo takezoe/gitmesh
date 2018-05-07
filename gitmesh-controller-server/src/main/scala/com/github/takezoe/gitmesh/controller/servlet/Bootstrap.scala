@@ -31,6 +31,7 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
   override def contextInitialized(sce: ServletContextEvent) = {
     val context = sce.getServletContext
     implicit val config = Config.load()
+    GitRepositoryProxyServer.initialize(config)
 
     val dataStore = new DataStore()
     Database.initializeDataSource(config.database)
@@ -64,7 +65,7 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
 
     // Start background jobs
     val scheduler = QuartzSchedulerExtension(system)
-    scheduler.schedule("checkNodes", system.actorOf(Props(classOf[CheckRepositoryNodeActor], config, dataStore)), "tick")
+    scheduler.schedule("checkNodes", system.actorOf(Props(classOf[CheckRepositoryNodeActor], config, dataStore, httpClient)), "tick")
   }
 
   override def contextDestroyed(sce: ServletContextEvent) = {

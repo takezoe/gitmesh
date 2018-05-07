@@ -9,19 +9,15 @@ import com.github.takezoe.gitmesh.controller.data.models._
 import com.github.takezoe.gitmesh.controller.util.{Config, ControllerLock, RepositoryLock}
 import org.http4s.client.Client
 import org.http4s.dsl.io._
-import io.circe._
 import org.http4s._
 import org.http4s.circe._
-import org.slf4j.LoggerFactory
 import io.circe.generic.auto._
-import io.circe.jawn.CirceSupportParser
 import io.circe.syntax._
 import org.http4s.client.dsl.io._
 
 class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore, httpClient: Client[IO]) extends Actor {
 
   private val log = Logging(context.system, this)
-
 
   override def receive = {
     case _ => {
