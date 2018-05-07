@@ -14,7 +14,6 @@ import org.http4s._
 import org.http4s.circe._
 import org.slf4j.LoggerFactory
 import io.circe.generic.auto._
-import io.circe.jawn.CirceSupportParser
 import io.circe.syntax._
 import org.http4s.client.dsl.io._
 
@@ -26,7 +25,7 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
 
   def joinNode(req: Request[IO]): IO[Response[IO]] = {
     for {
-      node <- decodeJson[JoinNodeRequest](req)
+      node <- req.decodeJson[JoinNodeRequest]
       exists <- dataStore.existNode(node.url)
       _ <- if(exists){
         dataStore.updateNodeStatus(node.url, node.diskUsage)
@@ -110,7 +109,7 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
 
   def repositorySynchronized(req: Request[IO], repositoryName: String): IO[Response[IO]] = {
     for {
-      node <- decodeJson[SynchronizedRequest](req)
+      node <- req.decodeJson[SynchronizedRequest]
       _    <- dataStore.updateNodeRepository(node.nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
       _    <- RepositoryLock.unlock(repositoryName)
       resp <- Ok()

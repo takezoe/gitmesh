@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory
 import org.http4s.dsl.io._
 import io.circe.generic.auto._
 import io.circe.syntax._
-import org.http4s._
 import org.http4s.circe._
 import org.http4s.client.dsl.io._
 

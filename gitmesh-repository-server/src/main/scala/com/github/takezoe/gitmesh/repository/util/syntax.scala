@@ -60,27 +60,29 @@ object syntax {
 
   def toUri(s: String): Uri = Uri.fromString(s).toTry.get
 
-  def header(req: Request[IO], name: String): IO[String] = IO {
-    req.headers.get(CaseInsensitiveString(name)).get.value
-  }
+  implicit class RequestOps(val req: Request[IO]) extends AnyVal {
+    def header(name: String): IO[String] = IO {
+      req.headers.get(CaseInsensitiveString(name)).get.value
+    }
 
-  def decodeJson[T](req: Request[IO])(implicit d: Decoder[T]): IO[T] = {
-    req.as[String].flatMap { json =>
-      IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[T])
+    def decodeJson[T](implicit d: Decoder[T]): IO[T] = {
+      req.as[String].flatMap { json =>
+        IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[T])
+      }
     }
   }
 
-  def writeFile(file: File, s: String): IO[Unit] = IO {
-    FileUtils.write(file, s, "UTF-8")
-  }
+  implicit class FileOps(val file: File) extends AnyVal {
+    def write(s: String): IO[Unit] = IO {
+      FileUtils.write(file, s, "UTF-8")
+    }
 
-  def deleteFile(file: File): IO[Unit] = IO {
-    if(file.exists){
-      FileUtils.forceDelete(file)
+    def forceDelete(): IO[Unit] = IO {
+      if(file.exists){
+        FileUtils.forceDelete(file)
+      }
     }
   }
-
-  def deleteDir(dir: File): IO[Unit] = deleteFile(dir)
 
   def logInfo(msg: String)(implicit logger: Logger): IO[Unit] = IO {
     logger.info(msg)

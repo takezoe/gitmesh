@@ -37,39 +37,25 @@ object syntax {
     }
   }
 
-//  implicit class AnyOps[T](value: T){
-//    def unsafeTap(f: T => Unit): T = {
-//      f(value)
-//      value
-//    }
-//  }
-
-  def toUri(s: String): Uri = Uri.fromString(s).toTry.get
-
-  def header(req: Request[IO], name: String): IO[String] = IO {
-    req.headers.get(CaseInsensitiveString(name)).get.value
-  }
-
-  def decodeJson[T](req: Request[IO])(implicit d: Decoder[T]): IO[T] = {
-    req.as[String].flatMap { json =>
-      IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[T])
+  implicit class AnyOps[T](val value: T) extends AnyVal {
+    def unsafeTap(f: T => Unit): T = {
+      f(value)
+      value
     }
   }
 
-//  def writeFile(file: File, s: String): IO[Unit] = IO {
-//    FileUtils.write(file, s, "UTF-8")
-//  }
-//
-//  def deleteFile(file: File): IO[Unit] = IO {
-//    if(file.exists){
-//      FileUtils.forceDelete(file)
-//    }
-//  }
-//
-//  def deleteDir(dir: File): IO[Unit] = deleteFile(dir)
-//
-//  def logInfo(msg: String)(implicit logger: Logger): IO[Unit] = IO {
-//    logger.info(msg)
-//  }
+  def toUri(s: String): Uri = Uri.fromString(s).toTry.get
+
+  implicit class RequestOps(val req: Request[IO]) extends AnyVal {
+    def header(name: String): IO[String] = IO {
+      req.headers.get(CaseInsensitiveString(name)).get.value
+    }
+
+    def decodeJson[T](implicit d: Decoder[T]): IO[T] = {
+      req.as[String].flatMap { json =>
+        IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[T])
+      }
+    }
+  }
 
 }
