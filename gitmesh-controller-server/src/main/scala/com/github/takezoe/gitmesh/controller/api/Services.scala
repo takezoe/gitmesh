@@ -6,6 +6,7 @@ import com.github.takezoe.gitmesh.controller.data.models.NodeRepositoryStatus
 import com.github.takezoe.gitmesh.controller.api.models._
 import com.github.takezoe.gitmesh.controller.data.DataStore
 import com.github.takezoe.gitmesh.controller.util.{Config, RepositoryLock}
+import com.github.takezoe.gitmesh.controller.util.syntax._
 import org.http4s.client.Client
 import org.http4s.dsl.io._
 import io.circe._
@@ -19,28 +20,25 @@ import org.http4s.client.dsl.io._
 
 class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config: Config) {
 
-  private val log = LoggerFactory.getLogger(classOf[Services])
-
-  implicit val decoderForJoinNodeRequest = jsonOf[IO, JoinNodeRequest]
-  implicit val decoderForSynchronizedRequest = jsonOf[IO, SynchronizedRequest]
+  implicit private val log = LoggerFactory.getLogger(classOf[Services])
+  implicit private val decoderForJoinNodeRequest = jsonOf[IO, JoinNodeRequest]
+  implicit private val decoderForSynchronizedRequest = jsonOf[IO, SynchronizedRequest]
 
   def joinNode(req: Request[IO]): IO[Response[IO]] = {
     for {
-      node   <- req.as[String].flatMap { json =>
-        IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[JoinNodeRequest])
-      }
+      node <- decodeJson[JoinNodeRequest](req)
       exists <- dataStore.existNode(node.url)
-      _      <- if(exists){
+      _ <- if(exists){
         dataStore.updateNodeStatus(node.url, node.diskUsage)
       } else {
         dataStore.addNewNode(node.url, node.diskUsage, node.repos).map {
           _.collect { case (repo, false) =>
             // TODO Need error handling here?
-            httpClient.expect[String](DELETE(Uri.fromString(s"${node.url}/api/repos/${repo.name}").toTry.get))
+            httpClient.expect[String](DELETE(toUri(s"${node.url}/api/repos/${repo.name}")))
           }
         }.flatMap(_.toList.sequence)
       }
-      resp   <- Ok()
+      resp <- Ok()
     } yield resp
   }
 
@@ -61,13 +59,13 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
   def deleteRepository(repositoryName: String): IO[Response[IO]] = {
     for {
       repo <- dataStore.getRepositoryStatus(repositoryName)
-      _    <- repo.map(_.nodes).getOrElse(Nil).map { node =>
+      _ <- repo.map(_.nodes).getOrElse(Nil).map { node =>
         for {
-          _      <- httpClient.expect[String](DELETE(Uri.fromString(s"${node.url}/api/repos/$repositoryName").toTry.get))
+          _ <- httpClient.expect[String](DELETE(toUri(s"${node.url}/api/repos/$repositoryName")))
           result <- dataStore.deleteRepository(node.url, repositoryName)
         } yield result
       }.toList.sequence
-      _    <- dataStore.deleteRepository(repositoryName)
+      _ <- dataStore.deleteRepository(repositoryName)
       resp <- Ok()
     } yield resp
   }
@@ -88,10 +86,8 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
                 _ <- nodes.map { node =>
                   for {
                     // Create a repository on the node
-                    _ <- httpClient.expect[String](POST.apply(
-                      Uri.fromString(s"${node.url}/api/repos/${repositoryName}").toTry.get,
-                      (),
-                      Header("GITMESH-UPDATE-ID", timestamp.toString)
+                    _ <- httpClient.expect[String](POST(
+                      toUri(s"${node.url}/api/repos/${repositoryName}"), (), Header("GITMESH-UPDATE-ID", timestamp.toString)
                     ))
                     // Insert to NODE_REPOSITORY
                     result <- dataStore.insertNodeRepository(node.url, repositoryName, NodeRepositoryStatus.Ready)
@@ -114,11 +110,9 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
 
   def repositorySynchronized(req: Request[IO], repositoryName: String): IO[Response[IO]] = {
     for {
-      node <- req.as[String].flatMap { json =>
-        IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[SynchronizedRequest])
-      }
-      _ <- dataStore.updateNodeRepository(node.nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
-      _ <- RepositoryLock.unlock(repositoryName)
+      node <- decodeJson[SynchronizedRequest](req)
+      _    <- dataStore.updateNodeRepository(node.nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
+      _    <- RepositoryLock.unlock(repositoryName)
       resp <- Ok()
     } yield resp
   }
