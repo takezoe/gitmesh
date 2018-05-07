@@ -4,12 +4,12 @@ import java.io.File
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.takezoe.gitmesh.repository.api.models.CloneRequest
 import io.circe.Decoder
 import io.circe.jawn.CirceSupportParser
 import org.apache.commons.io.FileUtils
 import org.http4s.util.CaseInsensitiveString
 import org.http4s.{Request, Uri}
+import org.slf4j.Logger
 
 object syntax {
 
@@ -81,5 +81,9 @@ object syntax {
   }
 
   def deleteDir(dir: File): IO[Unit] = deleteFile(dir)
+
+  def logInfo(msg: String)(implicit logger: Logger): IO[Unit] = IO {
+    logger.info(msg)
+  }
 
 }

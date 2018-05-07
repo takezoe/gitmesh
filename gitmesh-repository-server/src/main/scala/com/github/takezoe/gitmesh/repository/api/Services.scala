@@ -15,14 +15,13 @@ import org.http4s.circe._
 import org.slf4j.LoggerFactory
 import io.circe.generic.auto._
 import io.circe.syntax._
-import org.apache.commons.io.FileUtils
 import org.http4s.client.dsl.io._
 import org.http4s.util.CaseInsensitiveString
 
 class Services(httpClient: Client[IO])(implicit val config: Config) extends GitOperations {
 
-  private val log = LoggerFactory.getLogger(classOf[Services])
-  implicit val decoderForCloneRequest = jsonOf[IO, CloneRequest]
+  implicit private val log = LoggerFactory.getLogger(classOf[Services])
+  implicit private val decoderForCloneRequest = jsonOf[IO, CloneRequest]
 
   private def getRepositories(): Seq[String] = {
     val rootDir = new File(config.directory)
@@ -47,8 +46,8 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
   }
 
   def createRepository(repositoryName: String, req: Request[IO]): IO[Response[IO]] = {
-    log.info(s"Create repository: $repositoryName")
     for {
+      _ <- logInfo(s"Create repository: $repositoryName")
       timestamp <- IO {
         req.headers.get(CaseInsensitiveString("GITMESH-UPDATE-ID")).get.value.toLong
       }
@@ -91,8 +90,8 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
   }
 
   def deleteRepository(repositoryName: String): IO[Response[IO]] = {
-    log.info(s"Delete repository: $repositoryName")
     for {
+      _ <- logInfo(s"Delete repository: $repositoryName")
       _ <- deleteDir(new File(config.directory, repositoryName))
       _ <- deleteFile(new File(config.directory, s"$repositoryName.id"))
       resp <- Ok()
@@ -104,22 +103,20 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
       request <- decodeJson[CloneRequest](req)
       timestamp <- header(req, "GITMESH-UPDATE-ID").map(_.toLong)
       remoteUrl = s"${config.url}/git/$repositoryName.git"
-      _ <- IO {
-        log.info(s"Clone repository: $repositoryName from ${remoteUrl}")
-      }
+      _ <- logInfo(s"Clone repository: $repositoryName from ${remoteUrl}")
       // Delete the repository directory if it exists
       _ <- deleteDir(new File(config.directory, repositoryName))
       _ <- if(request.empty){
-        log.info("Create empty repository")
         for {
+          _ <- logInfo("Create empty repository")
           // Create an empty repository
           _ <- gitInit(repositoryName)
           // write timestamp
           result <- writeFile(new File(config.directory, s"$repositoryName.id"), timestamp.toString)
         } yield result
       } else {
-        log.info("Clone repository")
         for {
+          _ <- logInfo("Clone repository")
           // Clone the remote repository (without lock)
           _ <- gitClone(repositoryName, remoteUrl)
           // write timestamp
@@ -139,9 +136,7 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
     for {
       request <- decodeJson[SynchronizeRequest](req)
       remoteUrl = s"${request.nodeUrl}/git/$repositoryName.git"
-      _ <- IO {
-        log.info(s"Synchronize repository: $repositoryName with ${remoteUrl}")
-      }
+      _ <- logInfo(s"Synchronize repository: $repositoryName with ${remoteUrl}")
       _ <- firstSuccess(config.controllerUrl.map { controllerUrl =>
         httpClient.expect[String](POST(toUri(s"${controllerUrl}/api/repos/$repositoryName/_lock")))
       })
