@@ -4,7 +4,8 @@ import java.io.File
 
 import akka.actor.Actor
 import cats.effect.IO
-import com.github.takezoe.gitmesh.repository.util.Config
+import com.github.takezoe.gitmesh.repository.util._
+import com.github.takezoe.gitmesh.repository.util.syntax._
 import org.apache.commons.io.FileUtils
 import org.http4s.client.Client
 import org.slf4j.LoggerFactory
@@ -41,11 +42,9 @@ class HeartBeatSender(httpClient: Client[IO], config: Config){
       }
     }
 
-    // TODO retry
-    httpClient.expect[String](POST(
-      Uri.fromString(urls.head).toTry.get,
-      HeartBeatRequest(config.url, diskUsage, repos).asJson
-    )).unsafeRunSync()
+    firstSuccess(urls.map { url =>
+      httpClient.expect[String](POST(toUri(url), HeartBeatRequest(config.url, diskUsage, repos).asJson))
+    }).unsafeRunSync()
   }
 
 }

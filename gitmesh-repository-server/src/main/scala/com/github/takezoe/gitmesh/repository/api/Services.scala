@@ -6,6 +6,7 @@ import cats.effect.IO
 import cats.implicits._
 import com.github.takezoe.gitmesh.repository.api.models._
 import com.github.takezoe.gitmesh.repository.util._
+import com.github.takezoe.gitmesh.repository.util.syntax._
 import org.http4s.client.Client
 import org.http4s.dsl.io._
 import io.circe._
@@ -13,7 +14,6 @@ import org.http4s._
 import org.http4s.circe._
 import org.slf4j.LoggerFactory
 import io.circe.generic.auto._
-import io.circe.jawn.CirceSupportParser
 import io.circe.syntax._
 import org.apache.commons.io.FileUtils
 import org.http4s.client.dsl.io._
@@ -52,19 +52,12 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
       timestamp <- IO {
         req.headers.get(CaseInsensitiveString("GITMESH-UPDATE-ID")).get.value.toLong
       }
-      _ <- IO {
-        // Delete the repository directory if it exists
-        val dir = new File(config.directory, repositoryName)
-        if(dir.exists){
-          FileUtils.forceDelete(dir)
-        }
-      }
+      // Delete the repository directory if it exists
+      _ <- deleteDir(new File(config.directory, repositoryName))
+      // git init
       _ <- gitInit(repositoryName)
-      _ <- IO {
-        // Write timestamp
-        val file = new File(config.directory, s"$repositoryName.id")
-        FileUtils.write(file, timestamp.toString, "UTF-8")
-      }
+      // Write timestamp
+      _ <- writeFile(new File(config.directory, s"$repositoryName.id"), timestamp.toString)
       resp <- Ok()
     } yield resp
   }
@@ -76,9 +69,7 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
         rootDir.listFiles(_.isDirectory).toSeq
       }
       repos <- dirs.map { dir =>
-        gitCheckEmpty(dir.getName).map { empty =>
-          Repository(dir.getName, empty)
-        }
+        gitCheckEmpty(dir.getName).map { empty => Repository(dir.getName, empty) }
       }.toList.sequence
       resp <- Ok(Json.arr(repos.map(_.asJson): _*))
     } yield resp
@@ -102,49 +93,29 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
   def deleteRepository(repositoryName: String): IO[Response[IO]] = {
     log.info(s"Delete repository: $repositoryName")
     for {
-      _ <- IO {
-        val dir = new File(config.directory, repositoryName)
-        if(dir.exists){
-          FileUtils.forceDelete(dir)
-        }
-        val file = new File(config.directory, s"$repositoryName.id")
-        if(file.exists){
-          FileUtils.forceDelete(file)
-        }
-      }
+      _ <- deleteDir(new File(config.directory, repositoryName))
+      _ <- deleteFile(new File(config.directory, s"$repositoryName.id"))
       resp <- Ok()
     } yield resp
   }
 
   def cloneRepository(repositoryName: String, req: Request[IO]): IO[Response[IO]] = {
     for {
-      request <- req.as[String].flatMap { json =>
-        IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[CloneRequest])
-      }
-      timestamp <- IO {
-        req.headers.get(CaseInsensitiveString("GITMESH-UPDATE-ID")).get.value.toLong
-      }
+      request <- decodeJson[CloneRequest](req)
+      timestamp <- header(req, "GITMESH-UPDATE-ID").map(_.toLong)
       remoteUrl = s"${config.url}/git/$repositoryName.git"
       _ <- IO {
         log.info(s"Clone repository: $repositoryName from ${remoteUrl}")
       }
-      _ <- IO {
-        // Delete the repository directory if it exists
-        val dir = new File(config.directory, repositoryName)
-        if(dir.exists){
-          FileUtils.forceDelete(dir)
-        }
-      }
+      // Delete the repository directory if it exists
+      _ <- deleteDir(new File(config.directory, repositoryName))
       _ <- if(request.empty){
         log.info("Create empty repository")
         for {
           // Create an empty repository
           _ <- gitInit(repositoryName)
           // write timestamp
-          result <- IO {
-            val file = new File(config.directory, s"$repositoryName.id")
-            FileUtils.write(file, timestamp.toString, "UTF-8")
-          }
+          result <- writeFile(new File(config.directory, s"$repositoryName.id"), timestamp.toString)
         } yield result
       } else {
         log.info("Clone repository")
@@ -152,12 +123,9 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
           // Clone the remote repository (without lock)
           _ <- gitClone(repositoryName, remoteUrl)
           // write timestamp
-          _ <- IO {
-            val file = new File(config.directory, s"$repositoryName.id")
-            FileUtils.write(file, timestamp.toString, "UTF-8")
-          }
+          _ <- writeFile(new File(config.directory, s"$repositoryName.id"), timestamp.toString)
           result <- httpClient.expect[String](POST(
-            Uri.fromString(s"${request.nodeUrl}/api/repos/$repositoryName/_sync").toTry.get,
+            toUri(s"${request.nodeUrl}/api/repos/$repositoryName/_sync"),
             SynchronizeRequest(config.url).asJson,
             Header("GITMESH-UPDATE-ID", timestamp.toString)
           ))
@@ -169,26 +137,21 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
 
   def synchronizeRepository(repositoryName: String, req: Request[IO]): IO[Response[IO]] = {
     for {
-      request <- req.as[String].flatMap { json =>
-        IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[SynchronizeRequest])
-      }
-      timestamp <- IO {
-        req.headers.get(CaseInsensitiveString("GITMESH-UPDATE-ID")).get.value.toLong
-      }
+      request <- decodeJson[SynchronizeRequest](req)
       remoteUrl = s"${request.nodeUrl}/git/$repositoryName.git"
       _ <- IO {
         log.info(s"Synchronize repository: $repositoryName with ${remoteUrl}")
       }
-      // TODO retry request to other controllers
-      _ <- httpClient.expect[String](POST(
-        Uri.fromString(s"${config.controllerUrl.head}/api/repos/$repositoryName/_lock").toTry.get
-      ))
+      _ <- firstSuccess(config.controllerUrl.map { controllerUrl =>
+        httpClient.expect[String](POST(toUri(s"${controllerUrl}/api/repos/$repositoryName/_lock")))
+      })
       _ <- gitPushAll(repositoryName, remoteUrl)
-      // TODO retry request to other controllers
-      _ <- httpClient.expect[String](POST(
-        Uri.fromString(s"${config.controllerUrl.head}/api/repos/$repositoryName/_synced").toTry.get,
-        SynchronizedRequest(request.nodeUrl).asJson
-      ))
+      _ <- firstSuccess(config.controllerUrl.map { controllerUrl =>
+        httpClient.expect[String](POST(
+          toUri(s"${controllerUrl}/api/repos/$repositoryName/_synced"),
+          SynchronizedRequest(request.nodeUrl).asJson
+        ))
+      })
       resp <- Ok()
     } yield resp
   }
