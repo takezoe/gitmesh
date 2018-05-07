@@ -1,11 +1,14 @@
-package com.github.takezoe.gitmesh.repository
+package com.github.takezoe.gitmesh.repository.servlet
 
 import java.io.File
-import javax.servlet.{ServletContextEvent, ServletContextListener}
 import javax.servlet.annotation.WebListener
+import javax.servlet.{ServletContextEvent, ServletContextListener}
 
-import com.github.takezoe.resty._
 import akka.actor._
+import com.github.takezoe.gitmesh.repository.api.APIController
+import com.github.takezoe.gitmesh.repository.util.Config
+import com.github.takezoe.gitmesh.repository.util.syntax._
+import com.github.takezoe.resty._
 import com.github.takezoe.resty.util.JsonUtils
 import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
 import okhttp3.{Request, RequestBody}
@@ -14,8 +17,6 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import syntax._
-
 import scala.reflect.ClassTag
 
 @WebListener

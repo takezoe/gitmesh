@@ -1,13 +1,14 @@
-package com.github.takezoe.gitmesh.repository
+package com.github.takezoe.gitmesh.repository.api
 
 import java.io.File
 
+import com.github.takezoe.gitmesh.repository.util._
 import com.github.takezoe.resty._
 import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global // TODO use independent execution context for IO
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class APIController(implicit val config: Config) extends HttpClientSupport with GitOperations {
 
@@ -162,9 +163,3 @@ class APIController(implicit val config: Config) extends HttpClientSupport with 
   }
 
 }
-
-case class Status(url: String, diskUsage: Double, repos: Seq[String])
-case class CloneRequest(nodeUrl: String, empty: Boolean)
-case class SynchronizeRequest(nodeUrl: String)
-case class SynchronizedRequest(nodeUrl: String)
-case class Repository(name: String, empty: Boolean)

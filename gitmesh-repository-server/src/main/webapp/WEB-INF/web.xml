@@ -6,7 +6,7 @@
 
   <servlet>
     <servlet-name>GitRepositoryServlet</servlet-name>
-    <servlet-class>com.github.takezoe.gitmesh.repository.GitRepositoryServlet</servlet-class>
+    <servlet-class>com.github.takezoe.gitmesh.repository.servlet.GitRepositoryServlet</servlet-class>
   </servlet>
 
   <servlet-mapping>

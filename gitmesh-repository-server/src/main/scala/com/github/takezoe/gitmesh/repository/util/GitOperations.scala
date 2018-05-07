@@ -1,9 +1,9 @@
-package com.github.takezoe.gitmesh.repository
+package com.github.takezoe.gitmesh.repository.util
 
 import java.io.File
 
+import com.github.takezoe.gitmesh.repository.util.syntax.{defining, using}
 import org.eclipse.jgit.api.Git
-import syntax._
 import org.eclipse.jgit.lib.{Constants, RepositoryBuilder}
 
 trait GitOperations {

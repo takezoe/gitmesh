@@ -1,4 +1,4 @@
-package com.github.takezoe.gitmesh.repository
+package com.github.takezoe.gitmesh.repository.util
 
 object syntax {
 
