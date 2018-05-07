@@ -61,7 +61,7 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
 
     val services = new Services(dataStore, httpClient)
 
-    context.mountService("helloService", CORS(Routes(services)))
+    context.mountService("gitmeshControllerService", CORS(Routes(services)))
 
     // Start background jobs
     val scheduler = QuartzSchedulerExtension(system)

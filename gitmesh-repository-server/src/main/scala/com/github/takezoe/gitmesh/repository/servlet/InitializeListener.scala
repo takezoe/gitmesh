@@ -5,7 +5,6 @@ import javax.servlet.annotation.WebListener
 import javax.servlet.{ServletContextEvent, ServletContextListener}
 
 import akka.actor._
-import com.github.takezoe.gitmesh.repository.api.APIController
 import com.github.takezoe.gitmesh.repository.job.{HeartBeatActor, HeartBeatSender}
 import com.github.takezoe.gitmesh.repository.util.Config
 import com.github.takezoe.gitmesh.repository.util.syntax._
@@ -19,36 +18,36 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
-
-@WebListener
-class InitializeListener extends ServletContextListener {
-
-  private val system = ActorSystem("mySystem")
-
-  override def contextDestroyed(sce: ServletContextEvent): Unit = {
-    val f = system.terminate()
-    Await.result(f, 30.seconds)
-  }
-
-  override def contextInitialized(sce: ServletContextEvent): Unit = {
-    val config = Config.load()
-
-    defining(new File(config.directory)) { dir =>
-      if(!dir.exists){
-        dir.mkdirs()
-      }
-    }
-
-    Resty.register(new APIController()(config))
-
-    val heartBeatSender = new HeartBeatSender(config)
-    //notifier.send()
-
-    val scheduler = QuartzSchedulerExtension(system)
-    scheduler.schedule("heatBeat", system.actorOf(Props(classOf[HeartBeatActor], heartBeatSender)), "tick")
-  }
-
-}
+//
+//@WebListener
+//class InitializeListener extends ServletContextListener {
+//
+//  private val system = ActorSystem("mySystem")
+//
+//  override def contextDestroyed(sce: ServletContextEvent): Unit = {
+//    val f = system.terminate()
+//    Await.result(f, 30.seconds)
+//  }
+//
+//  override def contextInitialized(sce: ServletContextEvent): Unit = {
+//    val config = Config.load()
+//
+//    defining(new File(config.directory)) { dir =>
+//      if(!dir.exists){
+//        dir.mkdirs()
+//      }
+//    }
+//
+//    Resty.register(new APIController()(config))
+//
+//    val heartBeatSender = new HeartBeatSender(config)
+//    //notifier.send()
+//
+//    val scheduler = QuartzSchedulerExtension(system)
+//    scheduler.schedule("heatBeat", system.actorOf(Props(classOf[HeartBeatActor], heartBeatSender)), "tick")
+//  }
+//
+//}
 
 //class HeartBeatActor(notifier: HeartBeatSender) extends Actor with HttpClientSupport {
 //

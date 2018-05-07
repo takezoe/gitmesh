@@ -3,16 +3,19 @@ package com.github.takezoe.gitmesh.repository.job
 import java.io.File
 
 import akka.actor.Actor
+import cats.effect.IO
 import com.github.takezoe.gitmesh.repository.util.Config
-import com.github.takezoe.resty.{ErrorModel, HttpClientSupport, RequestTarget}
-import com.github.takezoe.resty.util.JsonUtils
-import okhttp3.{Request, RequestBody}
 import org.apache.commons.io.FileUtils
+import org.http4s.client.Client
 import org.slf4j.LoggerFactory
+import org.http4s.dsl.io._
+import io.circe.generic.auto._
+import io.circe.syntax._
+import org.http4s._
+import org.http4s.circe._
+import org.http4s.client.dsl.io._
 
-import scala.reflect.ClassTag
-
-class HeartBeatActor(notifier: HeartBeatSender) extends Actor with HttpClientSupport {
+class HeartBeatActor(notifier: HeartBeatSender) extends Actor {
 
   override def receive: Receive = {
     case _ => notifier.send()
@@ -20,9 +23,7 @@ class HeartBeatActor(notifier: HeartBeatSender) extends Actor with HttpClientSup
 
 }
 
-class HeartBeatSender(config: Config) extends HttpClientSupport {
-
-  implicit override val httpClientConfig = config.httpClient
+class HeartBeatSender(httpClient: Client[IO], config: Config){
 
   private val log = LoggerFactory.getLogger(classOf[HeartBeatSender])
   private val urls = config.controllerUrl.map { url => s"$url/api/nodes/notify" }
@@ -40,19 +41,12 @@ class HeartBeatSender(config: Config) extends HttpClientSupport {
       }
     }
 
-    httpPostJson[String](urls, HeartBeatRequest(config.url, diskUsage, repos)) match {
-      case Right(_) => // success
-      case Left(e) => log.error(e.errors.mkString("\n"))
-    }
+    // TODO retry
+    httpClient.expect[String](POST(
+      Uri.fromString(urls.head).toTry.get,
+      HeartBeatRequest(config.url, diskUsage, repos).asJson
+    )).unsafeRunSync()
   }
-
-  override def httpPostJson[T](target: RequestTarget, doc: AnyRef, configurer: Request.Builder => Unit = (builder) => ())(implicit c: ClassTag[T]): Either[ErrorModel, T] = {
-    target.execute(httpClient, (url, builder) => {
-      builder.url(url).post(RequestBody.create(HttpClientSupport.ContentType_JSON, JsonUtils.serialize(doc) + "\n"))
-      configurer(builder)
-    }, c.runtimeClass)
-  }
-
 
 }
 
