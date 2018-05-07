@@ -3,6 +3,7 @@ package com.github.takezoe.gitmesh.repository.api
 import java.io.File
 
 import com.github.takezoe.gitmesh.repository.util._
+import com.github.takezoe.gitmesh.repository.api.models._
 import com.github.takezoe.resty._
 import org.apache.commons.io.FileUtils
 import org.slf4j.LoggerFactory
