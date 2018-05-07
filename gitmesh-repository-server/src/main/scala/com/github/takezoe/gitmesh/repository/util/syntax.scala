@@ -43,18 +43,16 @@ object syntax {
   }
 
   def firstSuccess[T](seq: Seq[IO[T]]): IO[T] = {
-    val result: IO[List[Either[Throwable, T]]] = seq.toList.map(_.attempt).sequence
-
-    result.map { x =>
-      x.view.takeWhile(_.isLeft)
-    }.flatMap { x =>
-      x.find(_.isRight) match {
-        case Some(Right(x)) => IO.pure(x)
-        case _              => x.reverse.find(_.isLeft) match {
-          case Some(Left(x)) => throw x
-          case _             => throw new NoSuchElementException()
+    for {
+      result <- seq.map(_.attempt).fold(IO.pure(Left(new NoSuchElementException()))){ case (current, next) =>
+        current.flatMap {
+          case x @ Right(_) => IO.pure(x)
+          case _ => next
         }
       }
+    } yield result match {
+      case Right(x) => x
+      case Left(e) => throw e
     }
   }
 
