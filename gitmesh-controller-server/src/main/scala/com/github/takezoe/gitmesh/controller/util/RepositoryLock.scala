@@ -1,5 +1,6 @@
 package com.github.takezoe.gitmesh.controller.util
 
+import cats.effect.IO
 import com.github.takezoe.gitmesh.controller.data.models.{ExclusiveLock, ExclusiveLocks}
 import com.github.takezoe.gitmesh.controller.data.Database
 import com.github.takezoe.tranquil.Dialect.mysql
@@ -16,23 +17,27 @@ object RepositoryLock {
 
   private val log = LoggerFactory.getLogger(RepositoryLock.getClass)
 
-  def lock(repositoryName: String, comment: String)(implicit config: Config): Unit = Database.withConnection { conn =>
-    Database.withTransaction(conn){
-      val lock = ExclusiveLocks.filter(_.lockKey eq repositoryName).map(t => t.comment ~ t.lockTime).firstOption(conn)
+  def lock(repositoryName: String, comment: String)(implicit config: Config): IO[Unit] = IO {
+    Database.withConnection { conn =>
+      Database.withTransaction(conn){
+        val lock = ExclusiveLocks.filter(_.lockKey eq repositoryName).map(t => t.comment ~ t.lockTime).firstOption(conn)
 
-      lock.foreach { case (comment, lockTime) =>
-        throw new RepositoryLockException(
-          s"$repositoryName is already locked since ${new java.util.Date(lockTime).toString}: ${comment.getOrElse("")}"
-        )
+        lock.foreach { case (comment, lockTime) =>
+          throw new RepositoryLockException(
+            s"$repositoryName is already locked since ${new java.util.Date(lockTime).toString}: ${comment.getOrElse("")}"
+          )
+        }
+
+        ExclusiveLocks.insert(ExclusiveLock(repositoryName, if(comment.isEmpty) Some(comment) else None, System.currentTimeMillis))
       }
-
-      ExclusiveLocks.insert(ExclusiveLock(repositoryName, if(comment.isEmpty) Some(comment) else None, System.currentTimeMillis))
     }
   }
 
-  def unlock(repositoryName: String)(implicit config: Config): Unit = Database.withConnection { conn =>
-    Database.withTransaction(conn){
-      ExclusiveLocks.delete().filter(_.lockKey eq repositoryName).execute(conn)
+  def unlock(repositoryName: String)(implicit config: Config): IO[Unit] = IO {
+    Database.withConnection { conn =>
+      Database.withTransaction(conn){
+        ExclusiveLocks.delete().filter(_.lockKey eq repositoryName).execute(conn)
+      }
     }
   }
 

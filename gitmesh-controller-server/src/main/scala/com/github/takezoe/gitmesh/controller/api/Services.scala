@@ -1,5 +1,6 @@
 package com.github.takezoe.gitmesh.controller.api
 
+import cats.implicits._
 import cats.effect.IO
 import com.github.takezoe.gitmesh.controller.data.models.NodeRepositoryStatus
 import com.github.takezoe.gitmesh.controller.api.models._
@@ -25,109 +26,83 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
 
   def joinNode(req: Request[IO]): IO[Response[IO]] = {
     for {
-      node <- req.as[String].flatMap { json =>
+      node   <- req.as[String].flatMap { json =>
         IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[JoinNodeRequest])
       }
-      _ <- IO {
-        if(dataStore.existNode(node.url)){
-          dataStore.updateNodeStatus(node.url, node.diskUsage)
-        } else {
-          dataStore.addNewNode(node.url, node.diskUsage, node.repos).foreach { case (repo, added) =>
-            if(added == false){
-              try {
-                httpClient.expect[String](DELETE(
-                  Uri.fromString(s"${node.url}/api/repos/${repo.name}").toTry.get
-                )).unsafeRunSync()
-              } catch {
-                case e: Exception => log.error(s"Failed to delete repository ${repo.name} from ${node.url}", e)
-              }
-            }
+      exists <- dataStore.existNode(node.url)
+      _      <- if(exists){
+        dataStore.updateNodeStatus(node.url, node.diskUsage)
+      } else {
+        dataStore.addNewNode(node.url, node.diskUsage, node.repos).map {
+          _.collect { case (repo, false) =>
+            // TODO Need error handling here?
+            httpClient.expect[String](DELETE(Uri.fromString(s"${node.url}/api/repos/${repo.name}").toTry.get))
           }
-        }
+        }.flatMap(_.toList.sequence)
       }
-      resp <- Ok()
+      resp   <- Ok()
     } yield resp
   }
 
   def listNodes(): IO[Response[IO]] = {
     for {
-      nodes <- IO { dataStore.allNodes() }
-      resp <- Ok(Json.arr(nodes.map(_.asJson): _*))
+      nodes <- dataStore.allNodes()
+      resp  <- Ok(Json.arr(nodes.map(_.asJson): _*))
     } yield resp
   }
 
   def listRepositories(): IO[Response[IO]] = {
     for {
-      repos <- IO { dataStore.allRepositories() }
-      resp <- Ok(Json.arr(repos.map(_.asJson): _*))
+      repos <- dataStore.allRepositories()
+      resp  <- Ok(Json.arr(repos.map(_.asJson): _*))
     } yield resp
   }
 
   def deleteRepository(repositoryName: String): IO[Response[IO]] = {
     for {
-      _ <- IO {
-        dataStore
-          .getRepositoryStatus(repositoryName).map(_.nodes).getOrElse(Nil)
-          .foreach { node =>
-            try {
-              // Delete a repository from the node
-              //httpDelete[String](s"${node.url}/api/repos/$repositoryName")
-              httpClient.expect[String](DELETE(
-                Uri.fromString(s"${node.url}/api/repos/$repositoryName").toTry.get
-              )).unsafeRunSync()
-              // Delete from NODE_REPOSITORY
-              dataStore.deleteRepository(node.url, repositoryName)
-            } catch {
-              case e: Exception => log.error(s"Failed to delete repository $repositoryName on ${node.url}", e)
-            }
-          }
-
-        // Delete from REPOSITORY
-        dataStore.deleteRepository(repositoryName)
-      }
+      repo <- dataStore.getRepositoryStatus(repositoryName)
+      _    <- repo.map(_.nodes).getOrElse(Nil).map { node =>
+        for {
+          _      <- httpClient.expect[String](DELETE(Uri.fromString(s"${node.url}/api/repos/$repositoryName").toTry.get))
+          result <- dataStore.deleteRepository(node.url, repositoryName)
+        } yield result
+      }.toList.sequence
+      _    <- dataStore.deleteRepository(repositoryName)
       resp <- Ok()
     } yield resp
   }
 
   def createRepository(repositoryName: String): IO[Response[IO]] = {
     for {
-      result <- IO {
-        val repo = dataStore.getRepositoryStatus(repositoryName)
-        if(repo.nonEmpty){
-          Left(ErrorModel(Seq("Repository already exists.")))
-        } else {
-          val nodes = dataStore.allNodes()
-            .filter { _.diskUsage < config.maxDiskUsage }
-            .sortBy { _.diskUsage }
-            .take(config.replica)
-
-          if(nodes.nonEmpty){
-            RepositoryLock.execute(repositoryName, "create repository"){
-              // Insert to REPOSITORY and get timestamp
-              val timestamp = dataStore.insertRepository(repositoryName)
-
-              nodes.foreach { node =>
-                try {
-                  // Create a repository on the node
-                  httpClient.expect[String](POST.apply(
-                    Uri.fromString(s"${node.url}/api/repos/${repositoryName}").toTry.get,
-                    (),
-                    Header("GITMESH-UPDATE-ID", timestamp.toString)
-                  )).unsafeRunSync()
-                  // Insert to NODE_REPOSITORY
-                  dataStore.insertNodeRepository(node.url, repositoryName, NodeRepositoryStatus.Ready)
-
-                } catch {
-                  case e: Exception => log.error(s"Failed to create repository $repositoryName on ${node.url}", e)
-                }
-              }
-
-              Right((): Unit)
+      repo   <- dataStore.getRepositoryStatus(repositoryName)
+      result <- if(repo.nonEmpty){
+        IO.pure(Left(ErrorModel(Seq("Repository already exists."))))
+      } else {
+        for {
+          allNodes <- dataStore.allNodes()
+          nodes    <- IO.pure(allNodes.filter { _.diskUsage < config.maxDiskUsage }.sortBy { _.diskUsage }.take(config.replica))
+          result   <- if(nodes.nonEmpty){
+            RepositoryLock.execute(repositoryName, "create repository") {
+              for {
+                timestamp <- dataStore.insertRepository(repositoryName)
+                _ <- nodes.map { node =>
+                  for {
+                    // Create a repository on the node
+                    _ <- httpClient.expect[String](POST.apply(
+                      Uri.fromString(s"${node.url}/api/repos/${repositoryName}").toTry.get,
+                      (),
+                      Header("GITMESH-UPDATE-ID", timestamp.toString)
+                    ))
+                    // Insert to NODE_REPOSITORY
+                    result <- dataStore.insertNodeRepository(node.url, repositoryName, NodeRepositoryStatus.Ready)
+                  } yield result
+                }.toList.sequence
+              } yield Right((): Unit)
             }
           } else {
-            Left(ErrorModel(Seq("There are no nodes which can accommodate a new repository")))
+            IO.pure(Left(ErrorModel(Seq("There are no nodes which can accommodate a new repository"))))
           }
-        }
+        } yield result
       }
       resp <- result match {
         case Right(_) => Ok()
@@ -142,17 +117,15 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
       node <- req.as[String].flatMap { json =>
         IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[SynchronizedRequest])
       }
-      _ <- IO {
-        dataStore.updateNodeRepository(node.nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
-        RepositoryLock.unlock(repositoryName)
-      }
+      _ <- dataStore.updateNodeRepository(node.nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
+      _ <- RepositoryLock.unlock(repositoryName)
       resp <- Ok()
     } yield resp
   }
 
   def lockRepository(repositoryName: String): IO[Response[IO]] = {
     for {
-      _ <- IO { RepositoryLock.lock(repositoryName, "Lock by API") }
+      _    <- RepositoryLock.lock(repositoryName, "Lock by API")
       resp <- Ok()
     } yield resp
   }
