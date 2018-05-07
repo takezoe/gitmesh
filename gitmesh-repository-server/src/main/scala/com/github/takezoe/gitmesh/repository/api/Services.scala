@@ -96,14 +96,14 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
   }
 
   def cloneRepository(repositoryName: String, req: Request[IO]): IO[Response[IO]] = {
-    for {
+    val action = for {
       request <- req.decodeJson[CloneRequest]
       timestamp <- req.header("GITMESH-UPDATE-ID").map(_.toLong)
       remoteUrl = s"${config.url}/git/$repositoryName.git"
       _ <- logInfo(s"Clone repository: $repositoryName from ${remoteUrl}")
       // Delete the repository directory if it exists
       _ <- new File(config.directory, repositoryName).forceDelete()
-      _ <- if(request.empty){
+      result <- if(request.empty){
         for {
           _ <- logInfo("Create empty repository")
           // Create an empty repository
@@ -125,8 +125,14 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
           ))
         } yield result
       }
-      resp <- Ok()
-    } yield resp
+    } yield result
+
+    action.unsafeRunAsync {
+      case Left(e) => log.error("Error in clonnig repository", e)
+      case _ => ()
+    }
+
+    Ok()
   }
 
   def synchronizeRepository(repositoryName: String, req: Request[IO]): IO[Response[IO]] = {
