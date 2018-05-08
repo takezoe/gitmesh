@@ -25,15 +25,17 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
 
   def joinNode(req: Request[IO]): IO[Response[IO]] = {
     for {
-      node <- req.decodeJson[JoinNodeRequest]
+      node   <- req.decodeJson[JoinNodeRequest]
       exists <- dataStore.existNode(node.url)
-      _ <- if(exists){
+      _      <- if(exists){
         dataStore.updateNodeStatus(node.url, node.diskUsage)
       } else {
         dataStore.addNewNode(node.url, node.diskUsage, node.repos).map {
           _.collect { case (repo, false) =>
-            // TODO Need error handling here?
-            httpClient.expect[String](DELETE(toUri(s"${node.url}/api/repos/${repo.name}")))
+            httpClient.expect[String](DELETE(toUri(s"${node.url}/api/repos/${repo.name}"))).attempt.map {
+              case Left(e) => log.error(s"Failed to delete repository: ${repo.name} on ${node.url}", e)
+              case _ => ()
+            }
           }
         }.flatMap(_.toList.sequence)
       }
@@ -58,13 +60,18 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
   def deleteRepository(repositoryName: String): IO[Response[IO]] = {
     for {
       repo <- dataStore.getRepositoryStatus(repositoryName)
-      _ <- repo.map(_.nodes).getOrElse(Nil).map { node =>
-        for {
-          _ <- httpClient.expect[String](DELETE(toUri(s"${node.url}/api/repos/$repositoryName")))
+      _    <- repo.map(_.nodes).getOrElse(Nil).map { node =>
+        val action = for {
+          _      <- httpClient.expect[String](DELETE(toUri(s"${node.url}/api/repos/$repositoryName")))
           result <- dataStore.deleteRepository(node.url, repositoryName)
         } yield result
+
+        action.attempt.map {
+          case Left(e) => log.error(s"Failed to delete repository: ${repositoryName} on ${node.url}", e)
+          case _ => ()
+        }
       }.toList.sequence
-      _ <- dataStore.deleteRepository(repositoryName)
+      _    <- dataStore.deleteRepository(repositoryName)
       resp <- Ok()
     } yield resp
   }
@@ -82,8 +89,8 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
             RepositoryLock.execute(repositoryName, "create repository") {
               for {
                 timestamp <- dataStore.insertRepository(repositoryName)
-                _ <- nodes.map { node =>
-                  for {
+                _         <- nodes.map { node =>
+                  val action = for {
                     // Create a repository on the node
                     _ <- httpClient.expect[String](POST(
                       toUri(s"${node.url}/api/repos/${repositoryName}"), (), Header("GITMESH-UPDATE-ID", timestamp.toString)
@@ -91,6 +98,11 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
                     // Insert to NODE_REPOSITORY
                     result <- dataStore.insertNodeRepository(node.url, repositoryName, NodeRepositoryStatus.Ready)
                   } yield result
+
+                  action.attempt.map {
+                    case Left(e) => log.error(s"Failed to create repository ${repositoryName} on ${node.url}", e)
+                    case _ => ()
+                  }
                 }.toList.sequence
               } yield Right((): Unit)
             }
