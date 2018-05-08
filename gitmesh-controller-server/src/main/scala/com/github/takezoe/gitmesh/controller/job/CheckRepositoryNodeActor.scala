@@ -8,6 +8,7 @@ import com.github.takezoe.gitmesh.controller.api.models._
 import com.github.takezoe.gitmesh.controller.data.DataStore
 import com.github.takezoe.gitmesh.controller.data.models._
 import com.github.takezoe.gitmesh.controller.util.{Config, ControllerLock, RepositoryLock}
+import com.github.takezoe.gitmesh.controller.util.syntax._
 import org.http4s.client.Client
 import org.http4s.dsl.io._
 import org.http4s._
@@ -59,7 +60,7 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
           RepositoryLock.execute(repositoryName, "create replica") {
             for {
               _ <- httpClient.expect[String](PUT(
-                Uri.fromString(s"$nodeUrl/api/repos/${repositoryName}/_clone").toTry.get,
+                toUri(s"$nodeUrl/api/repos/${repositoryName}/_clone"),
                 CloneRequest(primaryNode, true).asJson,
                 Header("GITMESH-UPDATE-ID", timestamp.toString)
               ))
@@ -71,7 +72,7 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
           log.info("Clone repository")
           for {
             _ <- httpClient.expect[String](PUT(
-              Uri.fromString(s"$nodeUrl/api/repos/${repositoryName}/_clone").toTry.get,
+              toUri(s"$nodeUrl/api/repos/${repositoryName}/_clone"),
               CloneRequest(primaryNode, false).asJson,
               Header("GITMESH-UPDATE-ID", timestamp.toString)
             ))
