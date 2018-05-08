@@ -9,8 +9,8 @@ case class Config(
   maxDiskUsage: Double,
   database: DatabaseConfig,
   deadDetectionPeriod: DeadDetectionPeriod,
-  repositoryLock: RepositoryLock//,
-  //httpClient: HttpClientConfig
+  repositoryLock: RepositoryLock,
+  httpClient: HttpClientConfig
 )
 
 object Config {
@@ -34,6 +34,11 @@ object Config {
 
   case class RepositoryLock(
     maxRetry: Int,
+    retryInterval: Long
+  )
+
+  case class HttpClientConfig(
+    maxAttempts: Int,
     retryInterval: Long
   )
 
@@ -61,13 +66,11 @@ object Config {
       repositoryLock = Config.RepositoryLock(
         maxRetry      = c.getInt("gitmesh.repositoryLock.maxRetry"),
         retryInterval = c.getLong("gitmesh.repositoryLock.retryInterval")
-      )//,
-//      httpClient = HttpClientConfig(
-//        maxRetry      = c.getInt("resty.httpClient.maxRetry"),
-//        retryInterval = c.getInt("resty.httpClient.retryInterval"),
-//        maxFailure    = c.getInt("resty.httpClient.maxFailure"),
-//        resetInterval = c.getInt("resty.httpClient.resetInterval")
-//      )
+      ),
+      httpClient = HttpClientConfig(
+        maxAttempts   = c.getInt("gitmesh.httpClient.maxAttempts"),
+        retryInterval = c.getInt("gitmesh.httpClient.retryInterval")
+      )
     )
   }
 

@@ -7,27 +7,35 @@ import javax.servlet.annotation.WebListener
 import akka.actor._
 import cats.effect.IO
 
-import scala.concurrent.duration._
 import com.github.takezoe.gitmesh.repository.api.{Routes, Services}
 import com.github.takezoe.gitmesh.repository.job.{HeartBeatActor, HeartBeatSender}
 import com.github.takezoe.gitmesh.repository.util.Config
 import com.github.takezoe.gitmesh.repository.util.syntax.defining
 import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
+import fs2.Scheduler
 import org.http4s.client.blaze.Http1Client
+import org.http4s.client.middleware.{Retry, RetryPolicy}
 import org.http4s.server.middleware._
 import org.http4s.servlet.syntax.ServletContextSyntax
 
 import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 @WebListener
 class Bootstrap extends ServletContextListener with ServletContextSyntax {
 
+  private implicit val config = Config.load()
+  private implicit val scheduler = Scheduler.allocate[IO](4).unsafeRunSync()._1
+
   private val system = ActorSystem("mySystem")
-  private val httpClient = Http1Client[IO]().unsafeRunSync
+
+  private val httpClient = Retry[IO](RetryPolicy { i =>
+    if(i > config.httpClient.maxAttempts) None else Some(config.httpClient.retryInterval.milliseconds)
+  })(Http1Client[IO]().unsafeRunSync)
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
     val context = sce.getServletContext
-    implicit val config = Config.load()
 
     defining(new File(config.directory)) { dir =>
       if(!dir.exists){
