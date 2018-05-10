@@ -1,55 +1,59 @@
 package com.github.takezoe.gitmesh.controller.data
 
 import cats.effect.IO
-import cats.implicits._
 import com.github.takezoe.gitmesh.controller.api.models._
 import com.github.takezoe.gitmesh.controller.data.models._
 import com.github.takezoe.gitmesh.controller.util.{Config, RepositoryLock}
 import com.github.takezoe.tranquil.Dialect.mysql
 import com.github.takezoe.tranquil._
 import org.slf4j.LoggerFactory
+//import cats._, cats.data._
+import doobie._
+import doobie.implicits._
+import cats.implicits._
 
 class DataStore {
 
   private val log = LoggerFactory.getLogger(getClass)
 
-  def existNode(nodeUrl: String): IO[Boolean] = IO {
-    Database.withConnection { conn =>
-      val count = Nodes.filter(_.nodeUrl eq nodeUrl).count(conn)
-
+  def existNode(nodeUrl: String): IO[Boolean] = {
+    (for {
+      count <- sql"SELECT COUNT(*) FROM NODE WHERE NODE_URL = $nodeUrl".query[Int].unique
+    } yield {
       count match {
         case i if i > 0 => true
         case _ => false
       }
-    }
+    }).transact(Database.transactor)
   }
 
   def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[JoinNodeRepository])
-                (implicit config: Config): IO[Seq[(JoinNodeRepository, Boolean)]] = IO {
-    Database.withConnection { conn =>
-      log.info(s"Add new node: $nodeUrl")
-
-      Database.withTransaction(conn) {
-        Nodes.insert(Node(nodeUrl, System.currentTimeMillis, diskUsage)).execute(conn)
-      }
-
-      repos.map { repo =>
-        RepositoryLock.execute(repo.name, "add node") {
-          Database.withTransaction(conn) {
-            getRepositoryStatus(repo.name).unsafeRunSync() match {
+                (implicit config: Config): IO[Seq[(JoinNodeRepository, Boolean)]] = {
+    for {
+      _      <- (for {
+        result <- sql"INSERT INTO NODE (NODE_URL, LAST_UPDATE_TIME, DISK_USAGE) VALUES ($nodeUrl, ${System.currentTimeMillis}, $diskUsage)".update.run
+      } yield result).transact(Database.transactor)
+      result <- ({
+        repos.map { repo =>
+          for {
+            status <- getRepositoryStatus(repo.name)
+            result <- status match {
+              // add
               case Some(x) if x.timestamp == repo.timestamp && x.nodes.size < config.replica =>
-                if (x.primaryNode.isEmpty) {
-                  Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repo.name).execute(conn)
-                }
-                NodeRepositories.insert(NodeRepository(nodeUrl, repo.name, NodeRepositoryStatus.Ready)).execute(conn)
-                (repo, true) // added
-              case _ =>
-                (repo, false) // not added
+                (for {
+                  _      <- if(x.primaryNode.isEmpty){
+                             sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = ${repo.name}".update.run
+                           } else 0.pure[ConnectionIO]
+                  _      <- sql"INSERT INTO NODE_REPOSITORY () VALUES()".update.run
+                  result <- (repo, true).pure[ConnectionIO]
+                } yield result).transact(Database.transactor)
+              // not add
+              case _ => IO.pure(repo, false)
             }
-          }
+          } yield result
         }
-      }
-    }
+      }).toList.sequence
+    } yield result
   }
 
   def updateNodeStatus(nodeUrl: String, diskUsage: Double): IO[Unit] = IO {
