@@ -16,7 +16,7 @@ import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
 import fs2.Scheduler
 import io.github.gitbucket.solidbase.Solidbase
 import liquibase.database.core.{MySQLDatabase, PostgresDatabase, UnsupportedDatabase}
-import org.http4s.client.blaze.Http1Client
+import org.http4s.client.blaze.{BlazeClientConfig, Http1Client}
 import org.http4s.client.middleware.{Retry, RetryPolicy}
 import org.http4s.servlet.syntax.ServletContextSyntax
 import org.http4s.server.middleware.CORS
@@ -33,8 +33,14 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
 
   private val system = ActorSystem("mySystem")
   private val httpClient = Retry[IO](RetryPolicy { i =>
-    if(i > config.httpClient.maxAttempts) None else Some(config.httpClient.retryInterval.milliseconds)
-  })(Http1Client[IO]().unsafeRunSync)
+    if(i > config.httpClient.maxRetry) None else Some(config.httpClient.retryInterval.milliseconds)
+  })(Http1Client[IO](BlazeClientConfig.defaultConfig.copy(
+    requestTimeout      = config.httpClient.requestTimeout.milliseconds,
+    idleTimeout         = config.httpClient.requestTimeout.milliseconds,
+    maxTotalConnections = config.httpClient.maxConnections,
+    maxWaitQueueLimit   = config.httpClient.maxWaitQueue
+    // TODO Use IO execution context instead of global one.
+  )).unsafeRunSync)
 
   override def contextInitialized(sce: ServletContextEvent) = {
     val context = sce.getServletContext

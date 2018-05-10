@@ -38,7 +38,11 @@ object Config {
   )
 
   case class HttpClientConfig(
-    maxAttempts: Int,
+    requestTimeout: Long,
+    idleTimeout: Long,
+    maxConnections: Int,
+    maxWaitQueue: Int,
+    maxRetry: Int,
     retryInterval: Long
   )
 
@@ -68,7 +72,11 @@ object Config {
         retryInterval = c.getLong("gitmesh.repositoryLock.retryInterval")
       ),
       httpClient = HttpClientConfig(
-        maxAttempts   = c.getInt("gitmesh.httpClient.maxAttempts"),
+        requestTimeout = c.getLong("gitmesh.httpClient.requestTimeout"),
+        idleTimeout    = c.getLong("gitmesh.httpClient.idleTimeout"),
+        maxConnections = c.getInt("gitmesh.httpClient.maxConnections"),
+        maxWaitQueue   = c.getInt("gitmesh.httpClient.maxWaitQueue"),
+        maxRetry      = c.getInt("gitmesh.httpClient.maxRetry"),
         retryInterval = c.getInt("gitmesh.httpClient.retryInterval")
       )
     )
