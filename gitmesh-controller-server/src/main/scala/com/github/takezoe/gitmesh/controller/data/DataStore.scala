@@ -22,7 +22,7 @@ class DataStore {
     } yield {
       count match {
         case i if i > 0 => true
-        case _ => false
+        case _          => false
       }
     }).transact(Database.transactor)
   }
@@ -56,15 +56,11 @@ class DataStore {
     } yield result
   }
 
-  def updateNodeStatus(nodeUrl: String, diskUsage: Double): IO[Unit] = IO {
-    Database.withConnection { conn =>
-      Database.withTransaction(conn){
-        Nodes
-          .update(t => (t.lastUpdateTime -> System.currentTimeMillis) ~ (t.diskUsage -> diskUsage))
-          .filter(_.nodeUrl eq nodeUrl)
-          .execute(conn)
-      }
-    }
+  def updateNodeStatus(nodeUrl: String, diskUsage: Double): IO[Unit] = {
+    (for {
+      _      <- sql"UPDATE NODE SET LAST_UPDATE_TIME = ${System.currentTimeMillis}, DISK_USAGE = $diskUsage WHERE NODE_URL = $nodeUrl".update.run
+      result <- ().pure[ConnectionIO]
+    } yield result).transact(Database.transactor)
   }
 
   def removeNode(nodeUrl: String)(implicit config: Config): IO[Unit] = IO {
@@ -99,58 +95,62 @@ class DataStore {
     }
   }
 
-  def allNodes(): IO[Seq[NodeStatus]] = IO {
-    Database.withConnection { conn =>
-      Nodes
-        .leftJoin(NodeRepositories){ case node ~ nodeRepository => node.nodeUrl eq nodeRepository.nodeUrl }
-        .list(conn)
-        .groupBy { case node ~ _ => node.nodeUrl }
-        .map { case (nodeUrl, seq) =>
-          val node = seq.head._1
-          val repos = if(seq.head._2.isEmpty) Nil else seq.flatMap(_._2.map(x => NodeStatusRepository(x.repositoryName, x.status)))
-          NodeStatus(nodeUrl, node.lastUpdateTime, node.diskUsage, repos)
-        }
-        .toSeq
-        .sortBy(_.url)
-    }
+  def allNodes(): IO[Seq[NodeStatus]] = {
+    (for {
+      nodes <- sql"""SELECT N.NODE_URL,
+                            N.LAST_UPDATE_TIME,
+                            N.DISK_USAGE,
+                            NR.NODE_URL,
+                            NR.REPOSITORY_NAME,
+                            NR.STATUS
+                     FROM NODE N
+                     LEFT JOIN NODE_REPOSITORY NR ON N.NODE_URL = NR.NODE_URL"""
+        .query[(Node, Option[String], Option[String], Option[String])]
+        .map { case (node, nodeUrl, repositoryName, status) => (node, (nodeUrl, repositoryName, status).mapN(NodeRepository)) }
+        .to[List]
+      result <- nodes
+        .groupBy { case (node, _) => node.nodeUrl }
+        .collect { case (_, nodes @ (node, _) :: _) =>
+          NodeStatus(
+            url       = node.nodeUrl,
+            timestamp = node.lastUpdateTime,
+            diskUsage = node.diskUsage,
+            repos     = nodes.collect { case (_, Some(x)) => NodeStatusRepository(x.repositoryName, x.status) }
+          )
+        }.pure[ConnectionIO]
+    } yield result.toSeq).transact(Database.transactor)
   }
 
   /**
    * NOTE: This method must be used only in the repository lock.
    */
-  def updateRepositoryTimestamp(repositoryName: String, timestamp: Long): IO[Unit] = IO {
-    Database.withConnection { conn =>
-      Database.withTransaction(conn){
-        Repositories.update(_.lastUpdateTime -> timestamp).filter(_.repositoryName eq repositoryName).execute(conn)
-      }
-    }
+  def updateRepositoryTimestamp(repositoryName: String, timestamp: Long): IO[Unit] = {
+    (for {
+      _      <- sql"UPDATE REPOSITORY SET LAST_UPDATE_TIME = $timestamp WHERE REPOSITORY_NAME = $repositoryName".update.run
+      result <- ().pure[ConnectionIO]
+    } yield result).transact(Database.transactor)
   }
 
-  def deleteRepository(nodeUrl: String, repositoryName: String): IO[Unit] = IO {
-    Database.withConnection { conn =>
-      Database.withTransaction(conn){
-        Repositories.update(_.primaryNode asNull).filter(_.repositoryName eq repositoryName).execute(conn)
-        NodeRepositories.delete().filter(t => (t.nodeUrl eq nodeUrl) && (t.repositoryName eq repositoryName)).execute(conn)
-      }
-    }
+  def deleteRepository(nodeUrl: String, repositoryName: String): IO[Unit] = {
+    (for {
+      _      <- sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL WHERE REPOSITORY_NAME = $repositoryName".update.run
+      _      <- sql"DELETE NODE_REPOSITORY WHERE NODE_URL = $nodeUrl".update.run
+      result <- ().pure[ConnectionIO]
+    } yield result).transact(Database.transactor)
   }
 
-  def deleteRepository(repositoryName: String): IO[Unit] = IO {
-    Database.withConnection { conn =>
-      Database.withTransaction(conn){
-        Repositories.delete().filter(_.repositoryName eq repositoryName).execute(conn)
-      }
-    }
+  def deleteRepository(repositoryName: String): IO[Unit] = {
+    (for {
+      _      <- sql"DELETE REPOSITORY WHERE REPOSITORY_NAME = $repositoryName".update.run
+      result <- ().pure[ConnectionIO]
+    } yield result).transact(Database.transactor)
   }
 
-  def insertRepository(repositoryName: String): IO[Long] = IO {
-    Database.withConnection { conn =>
-      Database.withTransaction(conn){
-        val timestamp = InitialRepositoryId
-        Repositories.insert(Repository(repositoryName, None, timestamp)).execute(conn)
-        timestamp
-      }
-    }
+  def insertRepository(repositoryName: String): IO[Long] = {
+    (for {
+      timestamp <- InitialRepositoryId.pure[ConnectionIO]
+      _         <- sql"INSERT INTO REPOSITORY (REPOSITORY_NAME, PRIMARY_NODE, STATUS) VALUES ($repositoryName, $timestamp, NULL)".update.run
+    } yield timestamp).transact(Database.transactor)
   }
 
   def insertNodeRepository(nodeUrl: String, repositoryName: String, status: String): IO[Unit] = IO {
@@ -166,12 +166,11 @@ class DataStore {
     }
   }
 
-  def updateNodeRepository(nodeUrl: String, repositoryName: String, status: String): IO[Unit] = IO {
-    Database.withConnection { conn =>
-      Database.withTransaction(conn) {
-        NodeRepositories.update(_.status -> status).filter(t => (t.nodeUrl eq nodeUrl) && (t.repositoryName eq repositoryName)).execute(conn)
-      }
-    }
+  def updateNodeRepository(nodeUrl: String, repositoryName: String, status: String): IO[Unit] = {
+    (for {
+      _      <- sql"UPDATE NODE_REPOSITORY SET STATUS = $status WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName".update.run
+      result <- ().pure[ConnectionIO]
+    } yield result).transact(Database.transactor)
   }
 
   def getRepositoryStatus(repositoryName: String): IO[Option[RepositoryInfo]] = IO {
