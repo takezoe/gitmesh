@@ -193,13 +193,19 @@ class DataStore {
     }
   }
 
-  def getUrlOfAvailableNode(repositoryName: String)(implicit config: Config): IO[Option[String]] = IO {
-    Database.withConnection { conn =>
-      Nodes.filter(t =>
-        (t.nodeUrl notIn (NodeRepositories.filter(_.repositoryName eq repositoryName).map(_.nodeUrl))) &&
-          (t.diskUsage le config.maxDiskUsage)
-      ).sortBy(_.diskUsage asc).map(_.nodeUrl).firstOption(conn)
-    }
+  def getUrlOfAvailableNode(repositoryName: String)(implicit config: Config): IO[Option[String]] = {
+    (for {
+      node <- sql"""SELECT N.NODE_URL
+                    FROM NODE N
+                    WHERE
+                      N.NODE_URL NOT IN (
+                        SELECT NODE_URL
+                        FROM NODE_REPOSITORY NR
+                        WHERE N.REPOSITORY_NAME = NR.REPOSITORY_NAME
+                      ) AND N.DISK_USAGE < ${config.maxDiskUsage}
+                    ORDER BY N.DISK_USAGE
+                    LIMIT 1""".query[String].option
+    } yield node).transact(Database.transactor)
   }
 
 }
