@@ -5,7 +5,11 @@ import javax.servlet.annotation.WebListener
 import javax.servlet.{ServletContextEvent, ServletContextListener}
 
 import akka.actor.{ActorSystem, Props}
+import cats.data.Kleisli
 import cats.effect.IO
+import doobie._
+import doobie.implicits._
+import cats.implicits._
 import com.github.takezoe.gitmesh.controller.api.{Routes, Services}
 import com.github.takezoe.gitmesh.controller.data._
 import com.github.takezoe.gitmesh.controller.data.models._
@@ -49,20 +53,14 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
     val dataStore = new DataStore()
     Database.initializeDataSource(config.database)
 
-    Database.withConnection { conn =>
-      if (checkTableExist(conn)) {
-        // Clear cluster status
-        if(ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)) {
-          Database.withTransaction(conn){
-            Repositories.update(_.primaryNode asNull).execute(conn)
-            NodeRepositories.delete().execute(conn)
-            Nodes.delete().execute(conn)
-            ExclusiveLocks.delete().execute(conn)
-          }
-        }
+    val action: IO[_] = Database.xa.exec.apply(Kleisli((conn: Connection) => IO {
+      if(checkTableExist(conn)){
+        (for {
+          locked <- ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)
+          result <- if(locked) dataStore.clearClusterStatus() else IO.never
+        } yield result).unsafeRunSync()
       }
 
-      // Re-create empty tables
       new Solidbase().migrate(
         conn,
         Thread.currentThread.getContextClassLoader,
@@ -70,7 +68,9 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
         Migration
       )
       conn.commit()
-    }
+    }))
+
+    action.unsafeRunSync()
 
     val services = new Services(dataStore, httpClient)
 

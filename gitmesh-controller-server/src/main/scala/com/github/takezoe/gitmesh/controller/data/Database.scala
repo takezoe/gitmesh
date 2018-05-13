@@ -11,7 +11,7 @@ import doobie.util.transactor.Transactor
 object Database {
 
   private var dataSource: HikariDataSource = null
-  var transactor: Transactor.Aux[IO, Unit] = null
+  var xa: Transactor.Aux[IO, Unit] = null
 
   private def createDataSource(config: Config.DatabaseConfig): Transactor.Aux[IO, Unit] = {
     Transactor.fromDriverManager[IO](
@@ -37,14 +37,14 @@ object Database {
 
   def initializeDataSource(config: Config.DatabaseConfig): Unit = {
     //dataSource = createDataSource(config)
-    transactor = createDataSource(config)
+    xa = createDataSource(config)
   }
 
   def closeDataSource(): Unit = {
 //    dataSource.close()
   }
 
-  def withTransaction[T](conn: Connection)(f: => T): T = {
+//  def withTransaction[T](conn: Connection)(f: => T): T = {
 //    conn.setAutoCommit(false)
 //    try {
 //      val result = f
@@ -55,18 +55,16 @@ object Database {
 //        conn.rollback()
 //        throw e
 //    }
-    ???
-  }
-
-  def withConnection[T](f: (Connection) => T): T = {
-//    using(dataSource.getConnection){ conn =>
+//  }
+//
+//  def withConnection[T](f: (Connection) => T): T = {
+//    using(xa.connect((): Unit).unsafeRunSync()){ conn =>
 //      try {
 //        f(conn)
 //      } finally ignoreException {
 //        conn.close()
 //      }
 //    }
-    ???
-  }
+//  }
 
 }

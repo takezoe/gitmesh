@@ -23,29 +23,29 @@ class CheckRepositoryNodeActor(implicit val config: Config, dataStore: DataStore
 
   override def receive = {
     case _ => {
-      if(ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)){
-        // Check dead nodes
-        val timeout = System.currentTimeMillis() - config.deadDetectionPeriod.node
+      // Check dead nodes
+      val timeout = System.currentTimeMillis() - config.deadDetectionPeriod.node
 
-        val action: IO[_] = for {
-          nodes  <- dataStore.allNodes()
-          _      <- nodes.filter(_.timestamp < timeout).map { node =>
-            log.warning(s"${node.url} is retired.")
-            dataStore.removeNode(node.url)
-          }.toList.sequence
-          repos  <- dataStore.allRepositories()
-          result <- IO {
-            // Create replica
-            repos.filter { x => x.nodes.size < config.replica }.foreach { x =>
-              x.primaryNode.foreach { primaryNode =>
-                createReplicas(primaryNode, x.name, x.timestamp, x.nodes.size)
-              }
+      val action: IO[_] = for {
+        locked <- ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)
+        _      <- if(locked) IO.unit else IO.never
+        nodes  <- dataStore.allNodes()
+        _      <- nodes.filter(_.timestamp < timeout).map { node =>
+          log.warning(s"${node.url} is retired.")
+          dataStore.removeNode(node.url)
+        }.toList.sequence
+        repos  <- dataStore.allRepositories()
+        result <- IO {
+          // Create replica
+          repos.filter { x => x.nodes.size < config.replica }.foreach { x =>
+            x.primaryNode.foreach { primaryNode =>
+              createReplicas(primaryNode, x.name, x.timestamp, x.nodes.size)
             }
           }
-        } yield result
+        }
+      } yield result
 
-        action.unsafeRunSync()
-      }
+      action.unsafeRunSync()
     }
   }
 

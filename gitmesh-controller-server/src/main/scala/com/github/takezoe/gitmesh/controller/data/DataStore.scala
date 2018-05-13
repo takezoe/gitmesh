@@ -16,6 +16,15 @@ class DataStore {
 
   private val log = LoggerFactory.getLogger(getClass)
 
+  def clearClusterStatus(): IO[Unit] = {
+    (for {
+      _ <- sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL".update.run
+      _ <- sql"DELETE FROM NODE_REPOSITORY".update.run
+      _ <- sql"DELETE FROM NODE".update.run
+      _ <- sql"DELETE FROM EXCLUSIVE_LOCK".update.run
+    } yield ()).transact(Database.xa)
+  }
+
   def existNode(nodeUrl: String): IO[Boolean] = {
     (for {
       count <- sql"SELECT COUNT(*) FROM NODE WHERE NODE_URL = $nodeUrl".query[Int].unique
@@ -24,13 +33,13 @@ class DataStore {
         case i if i > 0 => true
         case _          => false
       }
-    }).transact(Database.transactor)
+    }).transact(Database.xa)
   }
 
   def addNewNode(nodeUrl: String, diskUsage: Double, repos: Seq[JoinNodeRepository])
                 (implicit config: Config): IO[Seq[(JoinNodeRepository, Boolean)]] = {
     for {
-      _      <- sql"INSERT INTO NODE (NODE_URL, LAST_UPDATE_TIME, DISK_USAGE) VALUES ($nodeUrl, ${System.currentTimeMillis}, $diskUsage)".update.run.transact(Database.transactor)
+      _      <- sql"INSERT INTO NODE (NODE_URL, LAST_UPDATE_TIME, DISK_USAGE) VALUES ($nodeUrl, ${System.currentTimeMillis}, $diskUsage)".update.run.transact(Database.xa)
       result <- ({
         repos.map { repo =>
           for {
@@ -42,10 +51,10 @@ class DataStore {
                   _ <- if(x.primaryNode.isEmpty){
                          sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = ${repo.name}".update.run
                        } else 0.pure[ConnectionIO]
-                  _ <- sql"INSERT INTO NODE_REPOSITORY () VALUES()".update.run
-                } yield (repo, true)).transact(Database.transactor)
+                  _ <- sql"INSERT INTO NODE_REPOSITORY (NODE_URL, REPOSITORY_NAME, STATUS) VALUES($nodeUrl, ${repo.name}, ${NodeRepositoryStatus.Ready})".update.run
+                } yield (repo, true)).transact(Database.xa)
               // not add
-              case _ => IO.pure(repo, false)
+              case _ => IO.pure((repo, false))
             }
           } yield result
         }
@@ -56,40 +65,56 @@ class DataStore {
   def updateNodeStatus(nodeUrl: String, diskUsage: Double): IO[Unit] = {
     (for {
       _ <- sql"UPDATE NODE SET LAST_UPDATE_TIME = ${System.currentTimeMillis}, DISK_USAGE = $diskUsage WHERE NODE_URL = $nodeUrl".update.run
-    } yield ()).transact(Database.transactor)
+    } yield ()).transact(Database.xa)
   }
 
-  def removeNode(nodeUrl: String)(implicit config: Config): IO[Unit] = IO {
-    Database.withConnection { conn =>
-      log.info(s"Remove node: $nodeUrl")
-      val repos = Repositories.filter(_.primaryNode eq nodeUrl).map(_.repositoryName).list(conn)
-
-      repos.foreach { repositoryName =>
-        RepositoryLock.execute(repositoryName, "remove node"){
-          Database.withTransaction(conn){
-            val nextPrimaryNodeUrl = NodeRepositories.filter { t =>
-              (t.nodeUrl ne nodeUrl) && (t.repositoryName eq repositoryName)
-            }.map(_.nodeUrl).firstOption(conn)
-
-            nextPrimaryNodeUrl match {
-              case Some(nodeUrl) =>
-                Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repositoryName).execute(conn)
-              case None =>
-                Repositories.update(_.primaryNode asNull).filter(_.repositoryName eq repositoryName).execute(conn)
-                log.error(s"All nodes for $repositoryName has been retired.")
-            }
-
-            NodeRepositories.delete().filter(t => (t.nodeUrl eq nodeUrl) && (t.repositoryName eq repositoryName)).execute(conn)
-          }
+  def removeNode(nodeUrl: String)(implicit config: Config): IO[Unit] = {
+    log.info(s"Remove node: $nodeUrl")
+    for {
+      _ <- (for {
+        repo <- sql"SELECT REPOSITORY_NAME FROM REPOSITORY WHERE PRIMARY_NODE = $nodeUrl".query[String].option
+        _    <- repo match {
+          case Some(repo) => ??? // TODO
+          case None => ().pure[ConnectionIO]
         }
-      }
-
-      Database.withTransaction(conn){
-        NodeRepositories.delete().filter(_.nodeUrl eq nodeUrl).execute(conn)
-        Nodes.delete().filter(_.nodeUrl eq nodeUrl).execute(conn)
-      }
-    }
+      } yield ()).transact(Database.xa)
+      _ <- (for {
+        _ <- sql"DELETE FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl".update.run
+        _ <- sql"DELETE FROM NODE WHERE NODE_URL = $nodeUrl".update.run
+      } yield()).transact(Database.xa)
+    } yield IO.unit
   }
+//  IO {
+//    Database.withConnection { conn =>
+//      log.info(s"Remove node: $nodeUrl")
+//      val repos = Repositories.filter(_.primaryNode eq nodeUrl).map(_.repositoryName).list(conn)
+//
+//      repos.foreach { repositoryName =>
+//        RepositoryLock.execute(repositoryName, "remove node"){
+//          Database.withTransaction(conn){
+//            val nextPrimaryNodeUrl = NodeRepositories.filter { t =>
+//              (t.nodeUrl ne nodeUrl) && (t.repositoryName eq repositoryName)
+//            }.map(_.nodeUrl).firstOption(conn)
+//
+//            nextPrimaryNodeUrl match {
+//              case Some(nodeUrl) =>
+//                Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repositoryName).execute(conn)
+//              case None =>
+//                Repositories.update(_.primaryNode asNull).filter(_.repositoryName eq repositoryName).execute(conn)
+//                log.error(s"All nodes for $repositoryName has been retired.")
+//            }
+//
+//            NodeRepositories.delete().filter(t => (t.nodeUrl eq nodeUrl) && (t.repositoryName eq repositoryName)).execute(conn)
+//          }
+//        }
+//      }
+//
+//      Database.withTransaction(conn){
+//        NodeRepositories.delete().filter(_.nodeUrl eq nodeUrl).execute(conn)
+//        Nodes.delete().filter(_.nodeUrl eq nodeUrl).execute(conn)
+//      }
+//    }
+//  }
 
   def allNodes(): IO[Seq[NodeStatus]] = {
     (for {
@@ -101,21 +126,19 @@ class DataStore {
                             NR.STATUS
                      FROM NODE N
                      LEFT JOIN NODE_REPOSITORY NR ON N.NODE_URL = NR.NODE_URL"""
-        .query[(Node, Option[String], Option[String], Option[String])]
-        .map { case (node, nodeUrl, repositoryName, status) => (node, (nodeUrl, repositoryName, status).mapN(NodeRepository)) }
-        .to[List]
+        .query[(Node, Option[NodeRepository])].to[List]
     } yield {
       nodes
-        .groupBy { case (node, _) => node.nodeUrl }
-        .collect { case (_, nodes @ (node, _) :: _) =>
+        .groupBy { case (node, _) => node }
+        .collect { case (node, nodes) =>
           NodeStatus(
             url       = node.nodeUrl,
             timestamp = node.lastUpdateTime,
             diskUsage = node.diskUsage,
             repos     = nodes.collect { case (_, Some(x)) => NodeStatusRepository(x.repositoryName, x.status) }
           )
-        }
-    }.toSeq).transact(Database.transactor)
+        }.toSeq
+    }).transact(Database.xa)
   }
 
   /**
@@ -124,27 +147,27 @@ class DataStore {
   def updateRepositoryTimestamp(repositoryName: String, timestamp: Long): IO[Unit] = {
     (for {
       _ <- sql"UPDATE REPOSITORY SET LAST_UPDATE_TIME = $timestamp WHERE REPOSITORY_NAME = $repositoryName".update.run
-    } yield ()).transact(Database.transactor)
+    } yield ()).transact(Database.xa)
   }
 
   def deleteRepository(nodeUrl: String, repositoryName: String): IO[Unit] = {
     (for {
       _ <- sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL WHERE REPOSITORY_NAME = $repositoryName".update.run
       _ <- sql"DELETE NODE_REPOSITORY WHERE NODE_URL = $nodeUrl".update.run
-    } yield ()).transact(Database.transactor)
+    } yield ()).transact(Database.xa)
   }
 
   def deleteRepository(repositoryName: String): IO[Unit] = {
     (for {
       _ <- sql"DELETE REPOSITORY WHERE REPOSITORY_NAME = $repositoryName".update.run
-    } yield ()).transact(Database.transactor)
+    } yield ()).transact(Database.xa)
   }
 
   def insertRepository(repositoryName: String): IO[Long] = {
     (for {
       timestamp <- InitialRepositoryId.pure[ConnectionIO]
       _         <- sql"INSERT INTO REPOSITORY (REPOSITORY_NAME, PRIMARY_NODE, STATUS) VALUES ($repositoryName, $timestamp, NULL)".update.run
-    } yield timestamp).transact(Database.transactor)
+    } yield timestamp).transact(Database.xa)
   }
 
   def insertNodeRepository(nodeUrl: String, repositoryName: String, status: String): IO[Unit] = {
@@ -156,14 +179,14 @@ class DataStore {
         } else ().pure[ConnectionIO]
         _ <- sql"DELETE FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName".update.run
         _ <- sql"INSERT INTO NODE_REPOSITORY (NODE_URL, REPOSITORY_NAME, STATUS) VALUES ($nodeUrl, $repositoryName, $status)".update.run
-      } yield ()).transact(Database.transactor)
+      } yield ()).transact(Database.xa)
     } yield ()
   }
 
   def updateNodeRepository(nodeUrl: String, repositoryName: String, status: String): IO[Unit] = {
     (for {
       _ <- sql"UPDATE NODE_REPOSITORY SET STATUS = $status WHERE NODE_URL = $nodeUrl AND REPOSITORY_NAME = $repositoryName".update.run
-    } yield ()).transact(Database.transactor)
+    } yield ()).transact(Database.xa)
   }
 
   def getRepositoryStatus(repositoryName: String): IO[Option[RepositoryInfo]] = {
@@ -174,23 +197,34 @@ class DataStore {
       repo.map { repo =>
         RepositoryInfo(repositoryName, repo.primaryNode, repo.lastUpdateTime, nodes.map(x => RepositoryNodeInfo(x.nodeUrl, x.status)))
       }
-    }).transact(Database.transactor)
+    }).transact(Database.xa)
   }
 
-  def allRepositories(): IO[Seq[RepositoryInfo]] = IO {
-    Database.withConnection { conn =>
-      Repositories
-        .leftJoin(NodeRepositories){ case repo ~ node => repo.repositoryName eq node.repositoryName }
-        .list(conn)
-        .groupBy { case repo ~ node => repo.repositoryName }
-        .map { case (repositoryName, seq) =>
-          val repo = seq.head._1
-          val nodes = if(seq.head._2.isEmpty) Nil else seq.flatMap(_._2.map(x => RepositoryNodeInfo(x.nodeUrl, x.status)))
-          RepositoryInfo(repositoryName, repo.primaryNode, repo.lastUpdateTime, nodes)
-        }
-        .toSeq
-        .sortBy(_.name)
-    }
+  def allRepositories(): IO[Seq[RepositoryInfo]] = {
+    (for {
+      result <-
+        sql"""SELECT
+                R.REPOSITORY_NAME,
+                R.PRIMARY_NODE,
+                R.LAST_UPDATE_TIME,
+                NR.NODE_URL,
+                NR.REPOSITORY_NAME,
+                NR.STATUS
+              FROM REPOSITORY R
+              LEFT OUTER JOIN NODE_REPOSITORY NR ON R.REPOSITORY_NAME = NR.REPOSITORY_NAME"""
+          .query[(Repository, Option[NodeRepository])].to[List]
+    } yield {
+      result
+        .groupBy { case (repo, _) => repo }
+        .collect { case (repo, nodes) =>
+          RepositoryInfo(
+            name        = repo.repositoryName,
+            primaryNode = repo.primaryNode,
+            timestamp   = repo.lastUpdateTime,
+            nodes       = nodes.collect { case (_, Some(node)) => RepositoryNodeInfo(node.nodeUrl, node.status) }
+          )
+        }.toSeq
+    }).transact(Database.xa)
   }
 
   def getUrlOfAvailableNode(repositoryName: String)(implicit config: Config): IO[Option[String]] = {
@@ -205,7 +239,7 @@ class DataStore {
                       ) AND N.DISK_USAGE < ${config.maxDiskUsage}
                     ORDER BY N.DISK_USAGE
                     LIMIT 1""".query[String].option
-    } yield node).transact(Database.transactor)
+    } yield node).transact(Database.xa)
   }
 
 }
