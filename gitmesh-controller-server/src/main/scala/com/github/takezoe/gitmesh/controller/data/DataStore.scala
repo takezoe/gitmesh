@@ -5,7 +5,6 @@ import com.github.takezoe.gitmesh.controller.api.models._
 import com.github.takezoe.gitmesh.controller.data.models._
 import com.github.takezoe.gitmesh.controller.util.Config
 import org.slf4j.LoggerFactory
-//import cats._, cats.data._
 import doobie._
 import doobie.implicits._
 import cats.implicits._

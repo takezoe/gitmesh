@@ -1,7 +1,5 @@
 package com.github.takezoe.gitmesh.controller.data
 
-import java.sql.Connection
-
 import cats.effect.IO
 import com.github.takezoe.gitmesh.controller.util.Config
 import com.github.takezoe.gitmesh.controller.util.syntax._
