@@ -13,7 +13,6 @@ libraryDependencies ++= Seq(
   "org.tpolecat"              %% "doobie-core"                  % "0.5.2",
   "io.circe"                  %% "circe-generic"                % "0.9.3",
   "com.squareup.okhttp3"       % "okhttp"                       % "3.9.1",
-  "com.github.takezoe"        %% "tranquil"                     % "1.0.1",
   "com.zaxxer"                 % "HikariCP"                     % "2.7.4",
   "io.github.gitbucket"        % "solidbase"                    % "1.0.2",
   "org.postgresql"             % "postgresql"                   % "42.1.4",

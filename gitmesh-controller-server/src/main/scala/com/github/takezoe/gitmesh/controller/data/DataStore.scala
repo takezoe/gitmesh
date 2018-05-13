@@ -3,9 +3,7 @@ package com.github.takezoe.gitmesh.controller.data
 import cats.effect.IO
 import com.github.takezoe.gitmesh.controller.api.models._
 import com.github.takezoe.gitmesh.controller.data.models._
-import com.github.takezoe.gitmesh.controller.util.{Config, RepositoryLock}
-import com.github.takezoe.tranquil.Dialect.mysql
-import com.github.takezoe.tranquil._
+import com.github.takezoe.gitmesh.controller.util.Config
 import org.slf4j.LoggerFactory
 //import cats._, cats.data._
 import doobie._
@@ -82,39 +80,8 @@ class DataStore {
         _ <- sql"DELETE FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl".update.run
         _ <- sql"DELETE FROM NODE WHERE NODE_URL = $nodeUrl".update.run
       } yield()).transact(Database.xa)
-    } yield IO.unit
+    } yield ()
   }
-//  IO {
-//    Database.withConnection { conn =>
-//      log.info(s"Remove node: $nodeUrl")
-//      val repos = Repositories.filter(_.primaryNode eq nodeUrl).map(_.repositoryName).list(conn)
-//
-//      repos.foreach { repositoryName =>
-//        RepositoryLock.execute(repositoryName, "remove node"){
-//          Database.withTransaction(conn){
-//            val nextPrimaryNodeUrl = NodeRepositories.filter { t =>
-//              (t.nodeUrl ne nodeUrl) && (t.repositoryName eq repositoryName)
-//            }.map(_.nodeUrl).firstOption(conn)
-//
-//            nextPrimaryNodeUrl match {
-//              case Some(nodeUrl) =>
-//                Repositories.update(_.primaryNode -> nodeUrl).filter(_.repositoryName eq repositoryName).execute(conn)
-//              case None =>
-//                Repositories.update(_.primaryNode asNull).filter(_.repositoryName eq repositoryName).execute(conn)
-//                log.error(s"All nodes for $repositoryName has been retired.")
-//            }
-//
-//            NodeRepositories.delete().filter(t => (t.nodeUrl eq nodeUrl) && (t.repositoryName eq repositoryName)).execute(conn)
-//          }
-//        }
-//      }
-//
-//      Database.withTransaction(conn){
-//        NodeRepositories.delete().filter(_.nodeUrl eq nodeUrl).execute(conn)
-//        Nodes.delete().filter(_.nodeUrl eq nodeUrl).execute(conn)
-//      }
-//    }
-//  }
 
   def allNodes(): IO[Seq[NodeStatus]] = {
     (for {
