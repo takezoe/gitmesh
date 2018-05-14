@@ -5,11 +5,11 @@ version := "0.1"
 scalaVersion := "2.12.4"
 
 libraryDependencies ++= Seq(
-  "org.http4s"                %% "http4s-servlet"               % "0.18.10",
-  "org.http4s"                %% "http4s-circe"                 % "0.18.10",
-  "org.http4s"                %% "http4s-dsl"                   % "0.18.10",
-  "org.http4s"                %% "http4s-dsl"                   % "0.18.10",
-  "org.http4s"                %% "http4s-blaze-client"          % "0.18.10",
+  "org.http4s"                %% "http4s-servlet"               % "0.18.11",
+  "org.http4s"                %% "http4s-circe"                 % "0.18.11",
+  "org.http4s"                %% "http4s-dsl"                   % "0.18.11",
+  "org.http4s"                %% "http4s-dsl"                   % "0.18.11",
+  "org.http4s"                %% "http4s-blaze-client"          % "0.18.11",
   "org.tpolecat"              %% "doobie-core"                  % "0.5.2",
   "io.monix"                  %% "monix"                        % "2.3.3",
   "io.circe"                  %% "circe-generic"                % "0.9.3",

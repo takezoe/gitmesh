@@ -3,9 +3,6 @@ package com.github.takezoe.gitmesh.repository.util
 import java.io.File
 
 import cats.effect.IO
-import cats.implicits._
-import io.circe.Decoder
-import io.circe.jawn.CirceSupportParser
 import org.apache.commons.io.FileUtils
 import org.http4s.util.CaseInsensitiveString
 import org.http4s.{Request, Uri}
@@ -61,12 +58,6 @@ object syntax {
   implicit class RequestOps(val req: Request[IO]) extends AnyVal {
     def header(name: String): IO[String] = IO {
       req.headers.get(CaseInsensitiveString(name)).get.value
-    }
-
-    def decodeJson[T](implicit d: Decoder[T]): IO[T] = {
-      req.as[String].flatMap { json =>
-        IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[T])
-      }
     }
   }
 

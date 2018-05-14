@@ -1,8 +1,6 @@
 package com.github.takezoe.gitmesh.controller.util
 
 import cats.effect.IO
-import io.circe.Decoder
-import io.circe.jawn.CirceSupportParser
 import org.http4s.{Request, Uri}
 import org.http4s.util.CaseInsensitiveString
 
@@ -49,12 +47,6 @@ object syntax {
   implicit class RequestOps(val req: Request[IO]) extends AnyVal {
     def header(name: String): IO[String] = IO {
       req.headers.get(CaseInsensitiveString(name)).get.value
-    }
-
-    def decodeJson[T](implicit d: Decoder[T]): IO[T] = {
-      req.as[String].flatMap { json =>
-        IO.fromEither(CirceSupportParser.parseFromString(json.trim).get.as[T])
-      }
     }
   }
 

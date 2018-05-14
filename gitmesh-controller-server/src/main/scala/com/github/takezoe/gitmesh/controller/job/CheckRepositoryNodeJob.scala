@@ -1,7 +1,5 @@
 package com.github.takezoe.gitmesh.controller.job
 
-import akka.actor.Actor
-import akka.event.Logging
 import cats.implicits._
 import cats.effect.IO
 import com.github.takezoe.gitmesh.controller.api.models._

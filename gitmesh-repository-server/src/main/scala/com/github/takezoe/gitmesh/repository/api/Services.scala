@@ -20,6 +20,7 @@ import org.http4s.client.dsl.io._
 class Services(httpClient: Client[IO])(implicit val config: Config) extends GitOperations {
 
   implicit private val log = LoggerFactory.getLogger(classOf[Services])
+  implicit private val decoderForSynchronizedRequest = jsonOf[IO, SynchronizeRequest]
   implicit private val decoderForCloneRequest = jsonOf[IO, CloneRequest]
 
   private def getRepositories(): Seq[String] = {
@@ -97,7 +98,7 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
 
   def cloneRepository(repositoryName: String, req: Request[IO]): IO[Response[IO]] = {
     val action = for {
-      request <- req.decodeJson[CloneRequest]
+      request <- req.as[CloneRequest]
       timestamp <- req.header("GITMESH-UPDATE-ID").map(_.toLong)
       remoteUrl = s"${config.url}/git/$repositoryName.git"
       _ <- logInfo(s"Clone repository: $repositoryName from ${remoteUrl}")
@@ -137,7 +138,7 @@ class Services(httpClient: Client[IO])(implicit val config: Config) extends GitO
 
   def synchronizeRepository(repositoryName: String, req: Request[IO]): IO[Response[IO]] = {
     for {
-      request <- req.decodeJson[SynchronizeRequest]
+      request <- req.as[SynchronizeRequest]
       remoteUrl = s"${request.nodeUrl}/git/$repositoryName.git"
       _ <- logInfo(s"Synchronize repository: $repositoryName with ${remoteUrl}")
       _ <- firstSuccess(config.controllerUrl.map { controllerUrl =>

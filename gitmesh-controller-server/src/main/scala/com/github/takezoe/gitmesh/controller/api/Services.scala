@@ -19,13 +19,13 @@ import org.http4s.client.dsl.io._
 
 class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config: Config) {
 
-  implicit private val log = LoggerFactory.getLogger(classOf[Services])
+  implicit private val log = LoggerFactory.getLogger(getClass)
   implicit private val decoderForJoinNodeRequest = jsonOf[IO, JoinNodeRequest]
   implicit private val decoderForSynchronizedRequest = jsonOf[IO, SynchronizedRequest]
 
   def joinNode(req: Request[IO]): IO[Response[IO]] = {
     for {
-      node   <- req.decodeJson[JoinNodeRequest]
+      node   <- req.as[JoinNodeRequest]
       exists <- dataStore.existNode(node.url)
       _      <- if(exists){
         dataStore.updateNodeStatus(node.url, node.diskUsage)
@@ -121,7 +121,7 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
 
   def repositorySynchronized(req: Request[IO], repositoryName: String): IO[Response[IO]] = {
     for {
-      node <- req.decodeJson[SynchronizedRequest]
+      node <- req.as[SynchronizedRequest]
       _    <- dataStore.updateNodeRepository(node.nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
       _    <- RepositoryLock.unlock(repositoryName)
       resp <- Ok()
