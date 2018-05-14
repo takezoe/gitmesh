@@ -2,7 +2,6 @@ package com.github.takezoe.gitmesh.repository.job
 
 import java.io.File
 
-import akka.actor.Actor
 import cats.effect.IO
 import com.github.takezoe.gitmesh.repository.util._
 import com.github.takezoe.gitmesh.repository.util.syntax._
@@ -15,20 +14,12 @@ import io.circe.syntax._
 import org.http4s.circe._
 import org.http4s.client.dsl.io._
 
-class HeartBeatActor(notifier: HeartBeatSender) extends Actor {
+class HeartBeatJob(httpClient: Client[IO], config: Config) extends Runnable {
 
-  override def receive: Receive = {
-    case _ => notifier.send()
-  }
-
-}
-
-class HeartBeatSender(httpClient: Client[IO], config: Config){
-
-  private val log = LoggerFactory.getLogger(classOf[HeartBeatSender])
+  private val log = LoggerFactory.getLogger(getClass)
   private val urls = config.controllerUrl.map { url => s"$url/api/nodes/notify" }
 
-  def send(): Unit = {
+  override def run(): Unit = {
     val rootDir = new File(config.directory)
     val diskUsage = 1.0d - (rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble)
     val repos = rootDir.listFiles(_.isDirectory).toSeq.flatMap { dir =>

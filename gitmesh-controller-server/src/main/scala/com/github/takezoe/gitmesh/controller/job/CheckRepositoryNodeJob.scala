@@ -24,14 +24,9 @@ class CheckRepositoryNodeJob(implicit val config: Config, dataStore: DataStore, 
     // Check dead nodes
     val timeout = System.currentTimeMillis() - config.deadDetectionPeriod.node
 
-    println("** job **")
-
     val action: IO[_] = for {
       locked <- ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)
-      _      <- {
-        println(locked)
-        if(locked) IO.unit else IO.never
-      }
+      _      <- if(locked) IO.unit else IO.never
       nodes  <- dataStore.allNodes()
       _      <- nodes.filter(_.timestamp < timeout).map { node =>
         log.warn(s"${node.url} is retired.")

@@ -1,23 +1,23 @@
 package com.github.takezoe.gitmesh.repository.servlet
 
 import java.io.File
+import java.util.concurrent.TimeUnit
 import javax.servlet.{ServletContextEvent, ServletContextListener}
 import javax.servlet.annotation.WebListener
 
-import akka.actor._
 import cats.effect.IO
 import com.github.takezoe.gitmesh.repository.api.{Routes, Services}
-import com.github.takezoe.gitmesh.repository.job.{HeartBeatActor, HeartBeatSender}
+import com.github.takezoe.gitmesh.repository.job.HeartBeatJob
 import com.github.takezoe.gitmesh.repository.util.Config
 import com.github.takezoe.gitmesh.repository.util.syntax.defining
-import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension
 import fs2.Scheduler
+import monix.execution.Cancelable
+import monix.execution.Scheduler.{global => monixScheduler}
 import org.http4s.client.blaze.{BlazeClientConfig, Http1Client}
 import org.http4s.client.middleware.{Retry, RetryPolicy}
 import org.http4s.server.middleware._
 import org.http4s.servlet.syntax.ServletContextSyntax
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
 // TODO Don't use global executoon context!
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -27,8 +27,7 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
 
   private implicit val config = Config.load()
   private implicit val scheduler = Scheduler.allocate[IO](4).unsafeRunSync()._1
-
-  private val system = ActorSystem("mySystem")
+  private var monix: Cancelable = null
 
   private val httpClient = Retry[IO](RetryPolicy { i =>
     if(i > config.httpClient.maxRetry) None else Some(config.httpClient.retryInterval.milliseconds)
@@ -49,20 +48,12 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
       }
     }
 
-    val services = new Services(httpClient)
-    context.mountService("gitmeshRepositoryService", CORS(Routes(services)))
-
-    val heartBeatSender = new HeartBeatSender(httpClient, config)
-    //notifier.send()
-
-    val scheduler = QuartzSchedulerExtension(system)
-    scheduler.schedule("heatBeat", system.actorOf(Props(classOf[HeartBeatActor], heartBeatSender)), "tick")
+    context.mountService("gitmeshRepositoryService", CORS(Routes(new Services(httpClient))))
+    monix = monixScheduler.scheduleWithFixedDelay(0, 30, TimeUnit.SECONDS, new HeartBeatJob(httpClient, config))
   }
 
   override def contextDestroyed(sce: ServletContextEvent): Unit = {
-    val f = system.terminate()
-    Await.result(f, 30.seconds)
-
+    monix.cancel()
     httpClient.shutdown.unsafeRunSync()
   }
 
