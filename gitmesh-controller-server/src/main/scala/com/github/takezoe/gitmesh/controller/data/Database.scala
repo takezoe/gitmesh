@@ -2,44 +2,56 @@ package com.github.takezoe.gitmesh.controller.data
 
 import cats.effect.IO
 import com.github.takezoe.gitmesh.controller.util.Config
-import com.github.takezoe.gitmesh.controller.util.syntax._
-import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
-import doobie.util.transactor.Transactor
+import doobie.hikari._, doobie.hikari.implicits._
 
 object Database {
 
-  private var dataSource: HikariDataSource = null
-  var xa: Transactor.Aux[IO, Unit] = null
+//  private var dataSource: HikariDataSource = null
+  var xa: HikariTransactor[IO] = null
 
-  private def createDataSource(config: Config.DatabaseConfig): Transactor.Aux[IO, Unit] = {
-    Transactor.fromDriverManager[IO](
-      config.driver,
-      config.url,
-      config.user,
-      config.password
-    )
-
-//    new HikariDataSource(new HikariConfig().unsafeTap { hikariConfig =>
-//      hikariConfig.setDriverClassName(config.driver)
-//      hikariConfig.setJdbcUrl(config.url)
-//      hikariConfig.setUsername(config.user)
-//      hikariConfig.setPassword(config.password)
-//      hikariConfig.setAutoCommit(false)
-//      config.connectionTimeout.foreach(hikariConfig.setConnectionTimeout)
-//      config.idleTimeout.foreach(hikariConfig.setIdleTimeout)
-//      config.maxLifetime.foreach(hikariConfig.setMaxLifetime)
-//      config.minimumIdle.foreach(hikariConfig.setMinimumIdle)
-//      config.maximumPoolSize.foreach(hikariConfig.setMaximumPoolSize)
-//    })
-  }
+//  private def createDataSource(config: Config.DatabaseConfig): HikariTransactor[IO] = {
+//    HikariTransactor.newHikariTransactor[IO](
+//      config.driver,
+//      config.url,
+//      config.user,
+//      config.password
+//    ).unsafeRunSync()
+//
+////    new HikariDataSource(new HikariConfig().unsafeTap { hikariConfig =>
+////      hikariConfig.setDriverClassName(config.driver)
+////      hikariConfig.setJdbcUrl(config.url)
+////      hikariConfig.setUsername(config.user)
+////      hikariConfig.setPassword(config.password)
+////      hikariConfig.setAutoCommit(false)
+////      config.connectionTimeout.foreach(hikariConfig.setConnectionTimeout)
+////      config.idleTimeout.foreach(hikariConfig.setIdleTimeout)
+////      config.maxLifetime.foreach(hikariConfig.setMaxLifetime)
+////      config.minimumIdle.foreach(hikariConfig.setMinimumIdle)
+////      config.maximumPoolSize.foreach(hikariConfig.setMaximumPoolSize)
+////    })
+//  }
 
   def initializeDataSource(config: Config.DatabaseConfig): Unit = {
-    //dataSource = createDataSource(config)
-    xa = createDataSource(config)
+    xa = (for {
+      xa <- HikariTransactor.newHikariTransactor[IO](
+        config.driver,
+        config.url,
+        config.user,
+        config.password
+      )
+      _ <- xa.configure { ds =>
+        IO {
+          config.idleTimeout.foreach(ds.setIdleTimeout)
+          config.connectionTimeout.foreach(ds.setConnectionTimeout)
+          config.maxLifetime.foreach(ds.setMaxLifetime)
+          config.maximumPoolSize.foreach(ds.setMaximumPoolSize)
+        }
+      }
+    } yield xa).unsafeRunSync()
   }
 
   def closeDataSource(): Unit = {
-//    dataSource.close()
+    xa.shutdown.unsafeRunSync()
   }
 
 //  def withTransaction[T](conn: Connection)(f: => T): T = {

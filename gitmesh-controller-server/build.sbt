@@ -11,6 +11,7 @@ libraryDependencies ++= Seq(
   "org.http4s"                %% "http4s-dsl"                   % "0.18.11",
   "org.http4s"                %% "http4s-blaze-client"          % "0.18.11",
   "org.tpolecat"              %% "doobie-core"                  % "0.5.2",
+  "org.tpolecat"              %% "doobie-hikari"                % "0.5.2",
   "io.monix"                  %% "monix"                        % "2.3.3",
   "io.circe"                  %% "circe-generic"                % "0.9.3",
   "com.typesafe"               % "config"                       % "1.3.2",
