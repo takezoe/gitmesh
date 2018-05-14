@@ -21,8 +21,10 @@ import org.http4s.servlet.syntax.ServletContextSyntax
 import org.http4s.server.middleware.CORS
 
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import monix.execution.Cancelable
+
+// TODO Use individual execution context instead of the global execution context!
+import scala.concurrent.ExecutionContext.Implicits.global
 import monix.execution.Scheduler.{global => monixScheduler}
 
 @WebListener
@@ -39,7 +41,6 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
     idleTimeout         = config.httpClient.requestTimeout.milliseconds,
     maxTotalConnections = config.httpClient.maxConnections,
     maxWaitQueueLimit   = config.httpClient.maxWaitQueue
-    // TODO Use IO execution context instead of global one.
   )).unsafeRunSync)
 
   override def contextInitialized(sce: ServletContextEvent) = {

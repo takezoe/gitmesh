@@ -12,14 +12,14 @@ import com.github.takezoe.gitmesh.repository.util.Config
 import com.github.takezoe.gitmesh.repository.util.syntax.defining
 import fs2.Scheduler
 import monix.execution.Cancelable
-import monix.execution.Scheduler.{global => monixScheduler}
 import org.http4s.client.blaze.{BlazeClientConfig, Http1Client}
 import org.http4s.client.middleware.{Retry, RetryPolicy}
 import org.http4s.server.middleware._
 import org.http4s.servlet.syntax.ServletContextSyntax
 
 import scala.concurrent.duration._
-// TODO Don't use global executoon context!
+// TODO Use individual execution context instead of the global execution context!
+import monix.execution.Scheduler.{global => monixScheduler}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 @WebListener
@@ -36,7 +36,6 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
     idleTimeout         = config.httpClient.requestTimeout.milliseconds,
     maxTotalConnections = config.httpClient.maxConnections,
     maxWaitQueueLimit   = config.httpClient.maxWaitQueue
-    // TODO Use IO execution context instead of global one.
   )).unsafeRunSync)
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {
