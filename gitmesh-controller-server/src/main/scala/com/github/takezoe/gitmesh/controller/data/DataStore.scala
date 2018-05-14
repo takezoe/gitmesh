@@ -3,7 +3,7 @@ package com.github.takezoe.gitmesh.controller.data
 import cats.effect.IO
 import com.github.takezoe.gitmesh.controller.api.models._
 import com.github.takezoe.gitmesh.controller.data.models._
-import com.github.takezoe.gitmesh.controller.util.Config
+import com.github.takezoe.gitmesh.controller.util.{Config, RepositoryLock}
 import org.slf4j.LoggerFactory
 import doobie._
 import doobie.implicits._
@@ -68,13 +68,21 @@ class DataStore {
   def removeNode(nodeUrl: String)(implicit config: Config): IO[Unit] = {
     log.info(s"Remove node: $nodeUrl")
     for {
-      _ <- (for {
-        repo <- sql"SELECT REPOSITORY_NAME FROM REPOSITORY WHERE PRIMARY_NODE = $nodeUrl".query[String].option
-        _    <- repo match {
-          case Some(repo) => ??? // TODO
-          case None => ().pure[ConnectionIO]
+      repos <- sql"SELECT REPOSITORY_NAME FROM REPOSITORY WHERE PRIMARY_NODE = $nodeUrl".query[String].to[List].transact(Database.xa)
+      _     <- repos.map { repositoryName =>
+        RepositoryLock.execute(repositoryName, "remove node") {
+          (for {
+            next <- sql"SELECT NODE_URL FROM NODE_REPOSITORY WHERE NODE_URL <> $nodeUrl AND REPOSITORY_NAME = $repositoryName LIMIT 1".query[String].option
+            _    <- next match {
+              case Some(next) =>
+                sql"UPDATE REPOSITORY SET PRIMARY_NODE = $nodeUrl WHERE REPOSITORY_NAME = $repositoryName".update.run
+              case None =>
+                log.error(s"All nodes for $repositoryName has been retired.")
+                sql"UPDATE REPOSITORY SET PRIMARY_NODE = NULL WHERE REPOSITORY_NAME = $repositoryName".update.run
+            }
+          } yield ()).transact(Database.xa)
         }
-      } yield ()).transact(Database.xa)
+      }.sequence
       _ <- (for {
         _ <- sql"DELETE FROM NODE_REPOSITORY WHERE NODE_URL = $nodeUrl".update.run
         _ <- sql"DELETE FROM NODE WHERE NODE_URL = $nodeUrl".update.run
@@ -201,7 +209,7 @@ class DataStore {
                       N.NODE_URL NOT IN (
                         SELECT NODE_URL
                         FROM NODE_REPOSITORY NR
-                        WHERE N.REPOSITORY_NAME = NR.REPOSITORY_NAME
+                        WHERE NR.REPOSITORY_NAME = $repositoryName
                       ) AND N.DISK_USAGE < ${config.maxDiskUsage}
                     ORDER BY N.DISK_USAGE
                     LIMIT 1""".query[String].option

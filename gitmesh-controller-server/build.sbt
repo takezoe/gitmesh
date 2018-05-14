@@ -11,6 +11,7 @@ libraryDependencies ++= Seq(
   "org.http4s"                %% "http4s-dsl"                   % "0.18.10",
   "org.http4s"                %% "http4s-blaze-client"          % "0.18.10",
   "org.tpolecat"              %% "doobie-core"                  % "0.5.2",
+  "io.monix"                  %% "monix"                        % "2.3.3",
   "io.circe"                  %% "circe-generic"                % "0.9.3",
   "com.squareup.okhttp3"       % "okhttp"                       % "3.9.1",
   "com.zaxxer"                 % "HikariCP"                     % "2.7.4",
