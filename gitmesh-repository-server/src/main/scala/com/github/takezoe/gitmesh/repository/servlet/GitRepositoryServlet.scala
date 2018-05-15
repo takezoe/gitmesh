@@ -1,13 +1,14 @@
-package com.github.takezoe.gitmesh.repository
+package com.github.takezoe.gitmesh.repository.servlet
 
 import java.io.File
 import javax.servlet.ServletConfig
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
+import com.github.takezoe.gitmesh.repository.util._
+import com.github.takezoe.gitmesh.repository.util.syntax._
 import org.apache.commons.io.FileUtils
 import org.eclipse.jgit.http.server.GitServlet
 import org.eclipse.jgit.transport.resolver.FileResolver
-import syntax._
 
 class GitRepositoryServlet extends GitServlet {
 

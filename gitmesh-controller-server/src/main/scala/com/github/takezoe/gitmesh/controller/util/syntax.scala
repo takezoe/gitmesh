@@ -1,4 +1,8 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.util
+
+import cats.effect.IO
+import org.http4s.{Request, Uri}
+import org.http4s.util.CaseInsensitiveString
 
 object syntax {
 
@@ -31,10 +35,18 @@ object syntax {
     }
   }
 
-  implicit class AnyOps[T](value: T){
+  implicit class AnyOps[T](val value: T) extends AnyVal {
     def unsafeTap(f: T => Unit): T = {
       f(value)
       value
+    }
+  }
+
+  def toUri(s: String): Uri = Uri.fromString(s).toTry.get
+
+  implicit class RequestOps(val req: Request[IO]) extends AnyVal {
+    def header(name: String): IO[String] = IO {
+      req.headers.get(CaseInsensitiveString(name)).get.value
     }
   }
 

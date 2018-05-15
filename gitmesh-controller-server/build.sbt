@@ -5,19 +5,23 @@ version := "0.1"
 scalaVersion := "2.12.4"
 
 libraryDependencies ++= Seq(
-  //"org.eclipse.jgit"           % "org.eclipse.jgit.http.server" % "4.9.2.201712150930-r",
-  //"org.eclipse.jgit"           % "org.eclipse.jgit.archive"     % "4.9.2.201712150930-r",
-  "com.github.takezoe"        %% "resty"                        % "0.0.17",
-  //"com.github.takezoe"        %% "scala-jdbc"                   % "1.0.5",
-  "com.github.takezoe"        %% "tranquil"                     % "1.0.1",
+  "org.http4s"                %% "http4s-servlet"               % "0.18.11",
+  "org.http4s"                %% "http4s-circe"                 % "0.18.11",
+  "org.http4s"                %% "http4s-dsl"                   % "0.18.11",
+  "org.http4s"                %% "http4s-dsl"                   % "0.18.11",
+  "org.http4s"                %% "http4s-blaze-client"          % "0.18.11",
+  "org.tpolecat"              %% "doobie-core"                  % "0.5.2",
+  "org.tpolecat"              %% "doobie-hikari"                % "0.5.2",
+  "io.monix"                  %% "monix"                        % "2.3.3",
+  "io.circe"                  %% "circe-generic"                % "0.9.3",
+  "com.typesafe"               % "config"                       % "1.3.2",
+  "com.squareup.okhttp3"       % "okhttp"                       % "3.9.1",
   "com.zaxxer"                 % "HikariCP"                     % "2.7.4",
   "io.github.gitbucket"        % "solidbase"                    % "1.0.2",
   "org.postgresql"             % "postgresql"                   % "42.1.4",
   "org.mariadb.jdbc"           % "mariadb-java-client"          % "2.2.1",
   "commons-io"                 % "commons-io"                   % "2.6",
   "ch.qos.logback"             % "logback-classic"              % "1.2.3",
-  "com.typesafe.akka"         %% "akka-actor"                   % "2.5.8",
-  "com.enragedginger"         %% "akka-quartz-scheduler"        % "1.6.1-akka-2.5.x",
   "org.eclipse.jetty"          % "jetty-webapp"                 % "9.4.7.v20170914" % "container",
   "org.eclipse.jetty"          % "jetty-plus"                   % "9.4.7.v20170914" % "container",
   "org.eclipse.jetty"          % "jetty-annotations"            % "9.4.7.v20170914" % "container",
@@ -27,5 +31,6 @@ libraryDependencies ++= Seq(
 )
 
 enablePlugins(JettyPlugin)
+//addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 
 containerPort := 8081

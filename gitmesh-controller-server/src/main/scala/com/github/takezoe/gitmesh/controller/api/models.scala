@@ -1,6 +1,6 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.api
 
-object api {
+object models {
 
   case class JoinNodeRequest(url: String, diskUsage: Double, repos: Seq[JoinNodeRepository])
   case class JoinNodeRepository(name: String, timestamp: Long)
@@ -14,5 +14,7 @@ object api {
   case class NodeStatusRepository(name: String, status: String)
 
   case class CloneRequest(nodeUrl: String, empty: Boolean)
+
+  case class ErrorModel(errors: Seq[String])
 
 }

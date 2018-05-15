@@ -1,8 +1,7 @@
-package com.github.takezoe.gitmesh.controller
+package com.github.takezoe.gitmesh.controller.util
 
-import com.github.takezoe.resty.HttpClientConfig
+import com.github.takezoe.gitmesh.controller.util.Config._
 import com.typesafe.config.ConfigFactory
-import Config._
 
 case class Config(
   url: String,
@@ -38,6 +37,15 @@ object Config {
     retryInterval: Long
   )
 
+  case class HttpClientConfig(
+    requestTimeout: Long,
+    idleTimeout: Long,
+    maxConnections: Int,
+    maxWaitQueue: Int,
+    maxRetry: Int,
+    retryInterval: Long
+  )
+
   def load(): Config = {
     implicit val c = ConfigFactory.load()
     Config(
@@ -64,10 +72,12 @@ object Config {
         retryInterval = c.getLong("gitmesh.repositoryLock.retryInterval")
       ),
       httpClient = HttpClientConfig(
-        maxRetry      = c.getInt("resty.httpClient.maxRetry"),
-        retryInterval = c.getInt("resty.httpClient.retryInterval"),
-        maxFailure    = c.getInt("resty.httpClient.maxFailure"),
-        resetInterval = c.getInt("resty.httpClient.resetInterval")
+        requestTimeout = c.getLong("gitmesh.httpClient.requestTimeout"),
+        idleTimeout    = c.getLong("gitmesh.httpClient.idleTimeout"),
+        maxConnections = c.getInt("gitmesh.httpClient.maxConnections"),
+        maxWaitQueue   = c.getInt("gitmesh.httpClient.maxWaitQueue"),
+        maxRetry      = c.getInt("gitmesh.httpClient.maxRetry"),
+        retryInterval = c.getInt("gitmesh.httpClient.retryInterval")
       )
     )
   }
