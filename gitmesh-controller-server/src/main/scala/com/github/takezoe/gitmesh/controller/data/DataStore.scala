@@ -140,7 +140,7 @@ class DataStore {
   def insertRepository(repositoryName: String): IO[Long] = {
     (for {
       timestamp <- InitialRepositoryId.pure[ConnectionIO]
-      _         <- sql"INSERT INTO REPOSITORY (REPOSITORY_NAME, PRIMARY_NODE, STATUS) VALUES ($repositoryName, $timestamp, NULL)".update.run
+      _         <- sql"INSERT INTO REPOSITORY (REPOSITORY_NAME, PRIMARY_NODE, LAST_UPDATE_TIME) VALUES ($repositoryName, NULL, $timestamp)".update.run
     } yield timestamp).transact(Database.xa)
   }
 
