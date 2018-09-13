@@ -1,0 +1,22 @@
+version: '2'
+
+services:
+  gitmesh-controller-server:
+    image: gitmesh-controller-server:0.1
+    restart: always
+    ports:
+    - 8081:8080
+    depends_on:
+    - db
+    environment:
+      gitmesh.url: http://localhost:8081
+      gitmesh.database.url: jdbc:mysql://db/gitmesh?useUnicode=true&characterEncoding=utf8
+      gitmesh.database.user: gitmesh
+      gitmesh.database.password: gitmesh
+  db:
+    image: mysql:5.7.22
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: gitmesh
+      MYSQL_PASSWORD: gitmesh
+      MYSQL_DATABASE: gitmesh
