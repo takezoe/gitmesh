@@ -1,7 +1,7 @@
 version: '2'
 
 services:
-  gitmesh-controller-server:
+  gitmesh-controller:
     image: gitmesh-controller-server:0.1
     restart: always
     ports:
@@ -13,6 +13,30 @@ services:
       gitmesh.database.url: jdbc:mysql://db/gitmesh?useUnicode=true&characterEncoding=utf8
       gitmesh.database.user: gitmesh
       gitmesh.database.password: gitmesh
+  gitmesh-repository-1:
+    image: gitmesh-repository-server:0.1
+    restart: always
+#    ports:
+#    - 8082:8080
+    depends_on:
+    - gitmesh-controller
+    environment:
+      gitmesh.url: http://gitmesh-repository-2:8080
+      gitmesh.controllerUrl: http://gitmesh-controller-server:8080
+    volumes:
+      - ./repos/node1:/repos
+  gitmesh-repository-2:
+    image: gitmesh-repository-server:0.1
+    restart: always
+#    ports:
+#    - 8083:8080
+    depends_on:
+    - gitmesh-controller
+    environment:
+      gitmesh.url: http://gitmesh-repository-2:8080
+      gitmesh.controllerUrl: http://gitmesh-controller-server:8080
+    volumes:
+      - ./repos/node2:/repos
   db:
     image: mysql:5.7.22
     environment:
