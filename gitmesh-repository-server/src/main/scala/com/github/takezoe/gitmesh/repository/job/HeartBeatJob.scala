@@ -21,6 +21,9 @@ class HeartBeatJob(httpClient: Client[IO], config: Config) extends Runnable {
 
   override def run(): Unit = {
     val rootDir = new File(config.directory)
+    if(!rootDir.exists()){
+      rootDir.mkdirs()
+    }
     val diskUsage = 1.0d - (rootDir.getFreeSpace.toDouble / rootDir.getTotalSpace.toDouble)
     val repos = rootDir.listFiles(_.isDirectory).toSeq.flatMap { dir =>
       val file = new File(rootDir, s"${dir.getName}.id")
