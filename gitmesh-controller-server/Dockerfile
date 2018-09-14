@@ -2,7 +2,9 @@ FROM jetty:9.4.1-alpine
 
 MAINTAINER Naoki Takezoe <takezoe [at] gmail.com>
 
-ADD ./ROOT.war /var/lib/jetty/webapps/ROOT.war
+ARG VERSION
+
+ADD ./target/scala-2.12/gitmesh-controller-server_2.12-$VERSION.war /var/lib/jetty/webapps/ROOT.war
 
 ENV gitmesh.url=http://localhost:8081
 ENV gitmesh.replica=2
