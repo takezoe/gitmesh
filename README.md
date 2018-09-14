@@ -21,7 +21,43 @@ This project is still under development phase, but if you are interested, please
 
 ## Setup
 
-You can setup gitmesh only from source code for now. This guide shows how to run the cluster with minimum configuration (one controller server and one repository server on a single machine).
+You can run run a minimal gitmesh cluster on docker and docker-compose.
+
+### Prerequisites
+
+- Java 8
+- sbt
+- Docker
+
+### Build docker images
+
+First, run the following command at the root of this repository to build docker images.
+
+```
+$ ./build-docker.sh
+```
+
+This script builds following docker images:
+
+- gitmesh-console
+- gitmesh-controller-server
+- gitmesh-repository-server
+
+### Run a cluster using docker-compose
+
+Next, run the following command to start a minimal gitmesh cluster (console x 1, controller x 1, mysql x 1, repository x 2). 
+
+```
+$ ./run-docker-compose.sh
+```
+
+This command executes docker-compose internally. So you can run a cluster with another structure by modifying `docker-compose.yml`.
+
+Web console is available at `http://localhost:8080`, and endpoints are available at `http://localhost:8081`. See [this section](#check-the-cluster-operation) to know how you can use a gitmesh cluster as a Git server.
+
+## Build and run from source code
+
+You can also build and run gitmesh from source code for now. This guide shows how to run the cluster with minimum configuration (one controller server and one repository server on a single machine).
 
 ### Prerequisites
 
@@ -58,7 +94,7 @@ $ sbt ~jetty:start
 
 The repository server is started on port 8082 in default.
 
-### Check the cluster operation
+## Check the cluster operation
 
 Let's create a new repository and push a commit using `git` command to check the cluster operation.
 
