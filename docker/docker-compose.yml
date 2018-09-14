@@ -1,6 +1,13 @@
 version: '2'
 
 services:
+  console:
+    image: gitmesh-console:0.1
+    restart: always
+    ports:
+    - 8080:8080
+    depends_on:
+    - controller
   controller:
     image: gitmesh-controller-server:0.1
     restart: always
