@@ -13,4 +13,4 @@ Run the minumal cluster (controller x 1, mysql x 1, repository x 2) using docker
 $ ./run-docker-compose.sh
 ```
 
-Then gitmesh is endpoints are available at `http://localhost:8081`.
+Then gitmesh console is available at `http://localhost:8080`, endpoints are available at `http://localhost:8081`.
