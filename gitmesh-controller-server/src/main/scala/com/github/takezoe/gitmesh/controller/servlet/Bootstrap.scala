@@ -63,7 +63,7 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
       new Solidbase().migrate(
         conn,
         Thread.currentThread.getContextClassLoader,
-        liquibaseDriver(config.database.jdbcUrl),
+        new MySQLDatabase(),
         Migration
       )
 
@@ -81,16 +81,6 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
     monix.cancel()
     httpClient.shutdown.unsafeRunSync()
     Database.closeDataSource()
-  }
-
-  private def liquibaseDriver(url: String): liquibase.database.Database = {
-    if(url.startsWith("jdbc:postgresql://")){
-      new PostgresDatabase()
-    } else if(url.startsWith("jdbc:mysql://")){
-      new MySQLDatabase()
-    } else {
-      new UnsupportedDatabase()
-    }
   }
 
   protected def checkTableExist(conn: Connection): Boolean = {
