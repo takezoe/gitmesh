@@ -1,34 +1,26 @@
 package com.github.takezoe.gitmesh.controller.data
 
-import cats.effect.IO
-import com.github.takezoe.gitmesh.controller.util.Config
-import doobie.hikari._, doobie.hikari.implicits._
+import com.github.takezoe.gitmesh.controller.util.Config.DatabaseConfig
+import com.typesafe.config.ConfigFactory
+import io.getquill._
 
 object Database {
 
-  var xa: HikariTransactor[IO] = null
+  var db: MysqlJdbcContext[CompositeNamingStrategy2[SnakeCase.type, UpperCase.type]] = null
 
-  def initializeDataSource(config: Config.DatabaseConfig): Unit = {
-    xa = (for {
-      xa <- HikariTransactor.newHikariTransactor[IO](
-        config.driver,
-        config.url,
-        config.user,
-        config.password
-      )
-      _ <- xa.configure { ds =>
-        IO {
-          config.idleTimeout.foreach(ds.setIdleTimeout)
-          config.connectionTimeout.foreach(ds.setConnectionTimeout)
-          config.maxLifetime.foreach(ds.setMaxLifetime)
-          config.maximumPoolSize.foreach(ds.setMaximumPoolSize)
-        }
-      }
-    } yield xa).unsafeRunSync()
+  def initDataSource(databaseConfig: DatabaseConfig): Unit = {
+    val config = ConfigFactory.parseString(
+      s"""
+        |jdbcUrl  = "${databaseConfig.jdbcUrl}"
+        |username = "${databaseConfig.username}"
+        |password = "${databaseConfig.password}"
+        |""".stripMargin)
+
+    db = new MysqlJdbcContext(NamingStrategy(SnakeCase, UpperCase), config)
   }
 
   def closeDataSource(): Unit = {
-    xa.shutdown.unsafeRunSync()
+    db.close()
   }
 
 }

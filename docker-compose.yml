@@ -17,8 +17,8 @@ services:
     - db
     environment:
       gitmesh.url: http://localhost:8081
-      gitmesh.database.url: jdbc:mysql://db/gitmesh?useUnicode=true&characterEncoding=utf8
-      gitmesh.database.user: gitmesh
+      gitmesh.database.jdbcUrl: jdbc:mysql://db/gitmesh?useUnicode=true&characterEncoding=utf8
+      gitmesh.database.username: gitmesh
       gitmesh.database.password: gitmesh
   repository1:
     image: gitmesh-repository-server:0.1
