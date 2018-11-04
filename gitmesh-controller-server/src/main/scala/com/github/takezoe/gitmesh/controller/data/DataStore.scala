@@ -141,8 +141,7 @@ class DataStore {
 
   def deleteRepository(nodeUrl: String, repositoryName: String): Unit = {
     db.transaction {
-      db.run(quote { query[Repository].filter(t => t.repositoryName == lift(repositoryName)).delete })
-      db.run(quote { query[NodeRepository].filter(t => t.nodeUrl == lift(nodeUrl)).delete })
+      db.run(quote { query[NodeRepository].filter(t => t.nodeUrl == lift(nodeUrl) && t.repositoryName == lift(repositoryName)).delete })
     }
   }
 
@@ -166,7 +165,7 @@ class DataStore {
   }
 
   def insertNodeRepository(nodeUrl: String, repositoryName: String, status: String): Unit = {
-    val repo = getRepositoryStatus(repositoryName) // TODO need to be run in transaction?
+    val repo = getRepositoryStatus(repositoryName)
 
     db.transaction {
       if(repo.map(_.primaryNode.isEmpty).getOrElse(false)){
