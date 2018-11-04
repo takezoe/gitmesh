@@ -41,7 +41,6 @@ object RepositoryLock {
   }
 
   def unlock(repositoryName: String)(implicit config: Config): Unit = {
-    ???
     db.transaction {
       db.run(quote { query[ExclusiveLock].filter(_.lockKey == lift(repositoryName)).delete })
     }

@@ -46,6 +46,7 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
   override def contextInitialized(sce: ServletContextEvent) = {
     val context = sce.getServletContext
     GitRepositoryProxyServer.initialize(config)
+    Database.initDataSource(config.database)
 
     val dataStore = new DataStore()
 
