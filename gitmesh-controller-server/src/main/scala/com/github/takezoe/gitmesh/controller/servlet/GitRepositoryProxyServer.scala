@@ -43,10 +43,10 @@ class GitRepositoryProxyServer extends HttpServlet {
     RepositoryLock.execute(repositoryName, "git push") {
       // Update timestamp of the REPOSITORY table
       val timestamp = System.currentTimeMillis
-      dataStore.updateRepositoryTimestamp(repositoryName, timestamp).unsafeRunSync()
+      dataStore.updateRepositoryTimestamp(repositoryName, timestamp)
 
       // Get relay destinations
-      val nodes = dataStore.getRepositoryStatus(repositoryName).unsafeRunSync()
+      val nodes = dataStore.getRepositoryStatus(repositoryName)
         .map(_.nodes).getOrElse(Nil).filter(_.status == NodeRepositoryStatus.Ready)
 
       if (nodes.nonEmpty) {
@@ -86,7 +86,7 @@ class GitRepositoryProxyServer extends HttpServlet {
               // If request failed remove the node
               case e: Exception =>
                 log.error(s"Remove node ${node.url} by error: ${e.toString}")
-                dataStore.removeNode(node.url).unsafeRunSync()
+                dataStore.removeNode(node.url)
             }
           }
         } finally {
@@ -105,7 +105,7 @@ class GitRepositoryProxyServer extends HttpServlet {
     val queryString = req.getQueryString
     val repositoryName = path.replaceAll("(^/git/)|(\\.git($|/.*))", "")
 
-    val primaryNode = dataStore.getRepositoryStatus(repositoryName).unsafeRunSync().map(_.primaryNode).flatten
+    val primaryNode = dataStore.getRepositoryStatus(repositoryName).map(_.primaryNode).flatten
 
     primaryNode.map { nodeUrl =>
       val builder = new Request.Builder().url(nodeUrl + path + (if(queryString == null) "" else "?" + queryString))
@@ -132,7 +132,7 @@ class GitRepositoryProxyServer extends HttpServlet {
         // If request failed, remove the node and try other nodes
         case e: Exception =>
           log.error(s"Remove node $nodeUrl by error: ${e.toString}")
-          dataStore.removeNode(nodeUrl).unsafeRunSync()
+          dataStore.removeNode(nodeUrl)
           doGet(req, resp)
       }
     }.getOrElse {

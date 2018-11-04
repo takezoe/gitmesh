@@ -1,10 +1,10 @@
 package com.github.takezoe.gitmesh.controller.servlet
 
-import java.sql.Connection
+import java.sql.{Connection, DriverManager}
 import java.util.concurrent.TimeUnit
+
 import javax.servlet.annotation.WebListener
 import javax.servlet.{ServletContextEvent, ServletContextListener}
-
 import cats.data.Kleisli
 import cats.effect.IO
 import com.github.takezoe.gitmesh.controller.api.{Routes, Services}
@@ -48,14 +48,15 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
     GitRepositoryProxyServer.initialize(config)
 
     val dataStore = new DataStore()
-    Database.initializeDataSource(config.database)
 
-    val action: IO[_] = Database.xa.exec.apply(Kleisli((conn: Connection) => IO {
+    val conn = DriverManager.getConnection(config.database.url, config.database.user, config.database.password)
+    try {
+      conn.setAutoCommit(false)
+
       if(checkTableExist(conn)){
-        (for {
-          locked <- ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)
-          result <- if(locked) dataStore.clearClusterStatus() else IO.never
-        } yield result).unsafeRunSync()
+        if(ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)){
+          dataStore.clearClusterStatus()
+        }
       }
 
       new Solidbase().migrate(
@@ -64,10 +65,12 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
         liquibaseDriver(config.database.url),
         Migration
       )
-      conn.commit()
-    }))
 
-    action.unsafeRunSync()
+      conn.commit()
+
+    } finally {
+      conn.close()
+    }
 
     context.mountService("gitmeshControllerService", CORS(Routes(new Services(dataStore, httpClient))))
     monix = monixScheduler.scheduleWithFixedDelay(0, 30, TimeUnit.SECONDS, new CheckRepositoryNodeJob()(config, dataStore, httpClient))
