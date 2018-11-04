@@ -16,15 +16,9 @@ case class Config(
 object Config {
 
   case class DatabaseConfig(
-    driver: String,
-    url: String,
-    user: String,
-    password: String,
-    connectionTimeout: Option[Long],
-    idleTimeout: Option[Long],
-    maxLifetime: Option[Long],
-    minimumIdle: Option[Int],
-    maximumPoolSize: Option[Int]
+    jdbcUrl: String,
+    username: String,
+    password: String
   )
 
   case class DeadDetectionPeriod(
@@ -53,15 +47,9 @@ object Config {
       replica      = getInt("gitmesh.replica", c),
       maxDiskUsage = getDouble("gitmesh.maxDiskUsage", c),
       database     = Config.DatabaseConfig(
-        driver            = getString("gitmesh.database.driver", c),
-        url               = getString("gitmesh.database.url", c),
-        user              = getString("gitmesh.database.user", c),
-        password          = getString("gitmesh.database.password", c),
-        connectionTimeout = getOptionLong("gitmesh.database.connectionTimeout", c),
-        idleTimeout       = getOptionLong("gitmesh.database.idleTimeout", c),
-        maxLifetime       = getOptionLong("gitmesh.database.maxLifetime", c),
-        minimumIdle       = getOptionInt("gitmesh.database.minimumIdle", c),
-        maximumPoolSize   = getOptionInt("gitmesh.database.maximumPoolSize", c)
+        jdbcUrl  = getString("gitmesh.database.jdbcUrl", c),
+        username = getString("gitmesh.database.username", c),
+        password = getString("gitmesh.database.password", c)//,
       ),
       deadDetectionPeriod = Config.DeadDetectionPeriod(
         node   = getLong("gitmesh.deadDetectionPeriod.node", c),

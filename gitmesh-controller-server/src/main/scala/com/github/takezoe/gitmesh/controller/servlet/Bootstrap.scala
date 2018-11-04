@@ -49,7 +49,7 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
 
     val dataStore = new DataStore()
 
-    val conn = DriverManager.getConnection(config.database.url, config.database.user, config.database.password)
+    val conn = DriverManager.getConnection(config.database.jdbcUrl, config.database.username, config.database.password)
     try {
       conn.setAutoCommit(false)
 
@@ -62,7 +62,7 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
       new Solidbase().migrate(
         conn,
         Thread.currentThread.getContextClassLoader,
-        liquibaseDriver(config.database.url),
+        liquibaseDriver(config.database.jdbcUrl),
         Migration
       )
 
