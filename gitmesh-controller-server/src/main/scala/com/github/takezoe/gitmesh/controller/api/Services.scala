@@ -24,115 +24,78 @@ class Services(dataStore: DataStore, httpClient: Client[IO])(implicit val config
   implicit private val decoderForSynchronizedRequest = jsonOf[IO, SynchronizedRequest]
 
   def joinNode(req: Request[IO]): IO[Response[IO]] = {
-    for {
-      node   <- req.as[JoinNodeRequest]
-      exists <- dataStore.existNode(node.url)
-      _      <- if(exists){
+    req.as[JoinNodeRequest].flatMap { node =>
+      if(dataStore.existNode(node.url)){
         dataStore.updateNodeStatus(node.url, node.diskUsage)
       } else {
-        dataStore.addNewNode(node.url, node.diskUsage, node.repos).map {
-          _.collect { case (repo, false) =>
-            httpClient.expect[String](DELETE(toUri(s"${node.url}/api/repos/${repo.name}"))).attempt.map {
-              case Left(e) => log.error(s"Failed to delete repository: ${repo.name} on ${node.url}", e)
-              case _ => ()
-            }
-          }
-        }.flatMap(_.toList.sequence)
+        dataStore.addNewNode(node.url, node.diskUsage, node.repos).collect { case (repo, false) => repo }.foreach { repo =>
+          httpClient.expect[String](DELETE(toUri(s"${node.url}/api/repos/${repo.name}"))).attempt.map {
+            case Left(e) => log.error(s"Failed to delete repository: ${repo.name} on ${node.url}", e)
+            case _ => ()
+          }.unsafeRunSync()
+        }
       }
-      resp <- Ok()
-    } yield resp
+      Ok()
+    }
   }
 
   def listNodes(): IO[Response[IO]] = {
-    for {
-      nodes <- dataStore.allNodes()
-      resp  <- Ok(Json.arr(nodes.map(_.asJson): _*))
-    } yield resp
+      Ok(Json.arr(dataStore.allNodes().map(_.asJson): _*))
   }
 
   def listRepositories(): IO[Response[IO]] = {
-    for {
-      repos <- dataStore.allRepositories()
-      resp  <- Ok(Json.arr(repos.map(_.asJson): _*))
-    } yield resp
+    Ok(Json.arr(dataStore.allRepositories().map(_.asJson): _*))
   }
 
   def deleteRepository(repositoryName: String): IO[Response[IO]] = {
-    for {
-      repo <- dataStore.getRepositoryStatus(repositoryName)
-      _    <- repo.map(_.nodes).getOrElse(Nil).map { node =>
-        val action = for {
-          _      <- httpClient.expect[String](DELETE(toUri(s"${node.url}/api/repos/$repositoryName")))
-          result <- dataStore.deleteRepository(node.url, repositoryName)
-        } yield result
-
-        action.attempt.map {
-          case Left(e) => log.error(s"Failed to delete repository: ${repositoryName} on ${node.url}", e)
-          case _ => ()
-        }
-      }.toList.sequence
-      _    <- dataStore.deleteRepository(repositoryName)
-      resp <- Ok()
-    } yield resp
+    val repo = dataStore.getRepositoryStatus(repositoryName)
+    repo.foreach(_.nodes.foreach { node =>
+      httpClient.expect[String](DELETE(toUri(s"${node.url}/api/repos/$repositoryName"))).unsafeRunSync()
+      dataStore.deleteRepository(node.url, repositoryName)
+    })
+    dataStore.deleteRepository(repositoryName)
+    Ok()
   }
 
   def createRepository(repositoryName: String): IO[Response[IO]] = {
-    for {
-      repo   <- dataStore.getRepositoryStatus(repositoryName)
-      result <- if(repo.nonEmpty){
-        IO.pure(Left(ErrorModel(Seq("Repository already exists."))))
+    val repo = dataStore.getRepositoryStatus(repositoryName)
+    if(repo.nonEmpty){
+      BadRequest(ErrorModel(Seq("Repository already exists.")).asJson)
+    } else {
+      val nodes = dataStore.allNodes().filter { _.diskUsage < config.maxDiskUsage }.sortBy { _.diskUsage }.take(config.replica)
+      if(nodes.isEmpty){
+        BadRequest(ErrorModel(Seq("There are no nodes which can accommodate a new repository.")).asJson)
       } else {
-        for {
-          allNodes <- dataStore.allNodes()
-          nodes    <- IO.pure(allNodes.filter { _.diskUsage < config.maxDiskUsage }.sortBy { _.diskUsage }.take(config.replica))
-          result   <- if(nodes.nonEmpty){
-            RepositoryLock.execute(repositoryName, "create repository") {
-              for {
-                timestamp <- dataStore.insertRepository(repositoryName)
-                _         <- nodes.map { node =>
-                  val action = for {
-                    // Create a repository on the node
-                    _ <- httpClient.expect[String](POST(
-                      toUri(s"${node.url}/api/repos/${repositoryName}"), (), Header("GITMESH-UPDATE-ID", timestamp.toString)
-                    ))
-                    // Insert to NODE_REPOSITORY
-                    result <- dataStore.insertNodeRepository(node.url, repositoryName, NodeRepositoryStatus.Ready)
-                  } yield result
+        RepositoryLock.execute(repositoryName, "create repository") {
+          val timestamp = dataStore.insertRepository(repositoryName)
+          nodes.map { node =>
+            // Create a repository on the node
+            httpClient.expect[String](POST(
+              toUri(s"${node.url}/api/repos/${repositoryName}"), (), Header("GITMESH-UPDATE-ID", timestamp.toString)
+            )).unsafeRunSync()
 
-                  action.attempt.map {
-                    case Left(e) => log.error(s"Failed to create repository ${repositoryName} on ${node.url}", e)
-                    case _ => ()
-                  }
-                }.toList.sequence
-              } yield Right((): Unit)
-            }
-          } else {
-            IO.pure(Left(ErrorModel(Seq("There are no nodes which can accommodate a new repository"))))
+            // Insert to NODE_REPOSITORY
+            dataStore.insertNodeRepository(node.url, repositoryName, NodeRepositoryStatus.Ready)
           }
-        } yield result
+        }
+        Ok()
       }
-      resp <- result match {
-        case Right(_) => Ok()
-        case Left(e: ErrorModel) => BadRequest(e.asJson)
-      }
-    } yield resp
-
+    }
   }
 
   def repositorySynchronized(req: Request[IO], repositoryName: String): IO[Response[IO]] = {
-    for {
-      node <- req.as[SynchronizedRequest]
-      _    <- dataStore.updateNodeRepository(node.nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
-      _    <- RepositoryLock.unlock(repositoryName)
-      resp <- Ok()
-    } yield resp
+    req.as[SynchronizedRequest].flatMap { node =>
+      dataStore.updateNodeRepository(node.nodeUrl, repositoryName, NodeRepositoryStatus.Ready)
+      RepositoryLock.unlock(repositoryName)
+      Ok()
+    }
   }
 
   def lockRepository(repositoryName: String): IO[Response[IO]] = {
-    for {
-      _    <- RepositoryLock.lock(repositoryName, "Lock by API")
-      resp <- Ok()
-    } yield resp
+    RepositoryLock.lock(repositoryName, "Lock by API") match {
+      case Right(_) => Ok()
+      case Left(e)  => InternalServerError(e.getMessage)
+    }
   }
 
 }

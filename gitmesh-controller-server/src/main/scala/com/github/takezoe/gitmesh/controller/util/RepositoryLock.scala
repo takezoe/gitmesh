@@ -1,9 +1,5 @@
 package com.github.takezoe.gitmesh.controller.util
 
-import doobie._
-import doobie.implicits._
-import cats.effect.IO
-import cats.implicits._
 import com.github.takezoe.gitmesh.controller.data.Database
 import com.github.takezoe.gitmesh.controller.data.models.ExclusiveLock
 import org.slf4j.LoggerFactory
@@ -16,29 +12,38 @@ import org.slf4j.LoggerFactory
  */
 object RepositoryLock {
 
+  private val db = Database.db
+  import db._
+
   private val log = LoggerFactory.getLogger(RepositoryLock.getClass)
 
-  def lock(repositoryName: String, comment: String)(implicit config: Config): IO[Either[Throwable, Unit]] = {
-    (for {
-      lock <- sql"SELECT LOCK_KEY, COMMENT, LOCK_TIME FROM EXCLUSIVE_LOCK WHERE LOCK_KEY = $repositoryName".query[ExclusiveLock].option
-      result <- lock match {
+  def lock(repositoryName: String, comment: String)(implicit config: Config): Either[Throwable, Unit] = {
+    db.transaction {
+      val lock = db.run(quote {
+        query[ExclusiveLock].filter(_.lockKey == lift(repositoryName))
+      }).headOption
+
+      lock match {
         case Some(lock) =>
           val e = new RepositoryLockException(s"$repositoryName is already locked since ${new java.util.Date(lock.lockTime).toString}: ${lock.comment.getOrElse("")}")
-          val result: Either[Throwable, Unit] = Left(e)
-          result.pure[ConnectionIO]
+          Left(e)
         case None =>
-          sql"INSERT INTO EXCLUSIVE_LOCK (LOCK_KEY, COMMENT, LOCK_TIME) VALUES ($repositoryName, $comment, ${System.currentTimeMillis})".update.run.map { _ =>
-            val result: Either[Throwable, Unit] = Right((): Unit)
-            result
-          }
+          db.run(quote {
+            query[ExclusiveLock].insert(lift(ExclusiveLock(
+              lockKey  = repositoryName,
+              comment  = Some(comment),
+              lockTime = System.currentTimeMillis()
+            )))
+          })
+          Right((): Unit)
       }
-    } yield result).transact(Database.xa)
+    }
   }
 
-  def unlock(repositoryName: String)(implicit config: Config): IO[Unit] = {
-    (for {
-      _ <- sql"DELETE FROM EXCLUSIVE_LOCK WHERE LOCK_KEY = $repositoryName".update.run
-    } yield ()).transact(Database.xa)
+  def unlock(repositoryName: String)(implicit config: Config): Unit = {
+    db.transaction {
+      db.run(quote { query[ExclusiveLock].filter(_.lockKey == lift(repositoryName)).delete })
+    }
   }
 
   def execute[T](repositoryName: String, comment: String)(action: => T)(implicit config: Config): T = {
@@ -49,7 +54,7 @@ object RepositoryLock {
                          (action: => T)(implicit config: Config): T = {
     try {
       try {
-        lock(repositoryName, comment).unsafeRunSync() match {
+        lock(repositoryName, comment) match {
           case Right(_) => try {
             action
           } catch {
@@ -58,7 +63,7 @@ object RepositoryLock {
           case Left(e) => throw e
         }
       } finally {
-        unlock(repositoryName).unsafeRunSync()
+        unlock(repositoryName)
       }
     } catch {
       case e: ActionException => throw e.getCause

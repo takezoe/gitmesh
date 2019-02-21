@@ -1,10 +1,10 @@
 package com.github.takezoe.gitmesh.controller.servlet
 
-import java.sql.Connection
+import java.sql.{Connection, DriverManager}
 import java.util.concurrent.TimeUnit
+
 import javax.servlet.annotation.WebListener
 import javax.servlet.{ServletContextEvent, ServletContextListener}
-
 import cats.data.Kleisli
 import cats.effect.IO
 import com.github.takezoe.gitmesh.controller.api.{Routes, Services}
@@ -46,28 +46,32 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
   override def contextInitialized(sce: ServletContextEvent) = {
     val context = sce.getServletContext
     GitRepositoryProxyServer.initialize(config)
+    Database.initDataSource(config.database)
 
     val dataStore = new DataStore()
-    Database.initializeDataSource(config.database)
 
-    val action: IO[_] = Database.xa.exec.apply(Kleisli((conn: Connection) => IO {
+    val conn = DriverManager.getConnection(config.database.jdbcUrl, config.database.username, config.database.password)
+    try {
+      conn.setAutoCommit(false)
+
       if(checkTableExist(conn)){
-        (for {
-          locked <- ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)
-          result <- if(locked) dataStore.clearClusterStatus() else IO.never
-        } yield result).unsafeRunSync()
+        if(ControllerLock.runForMaster("**master**", config.url, config.deadDetectionPeriod.master)){
+          dataStore.clearClusterStatus()
+        }
       }
 
       new Solidbase().migrate(
         conn,
         Thread.currentThread.getContextClassLoader,
-        liquibaseDriver(config.database.url),
+        new MySQLDatabase(),
         Migration
       )
-      conn.commit()
-    }))
 
-    action.unsafeRunSync()
+      conn.commit()
+
+    } finally {
+      conn.close()
+    }
 
     context.mountService("gitmeshControllerService", CORS(Routes(new Services(dataStore, httpClient))))
     monix = monixScheduler.scheduleWithFixedDelay(0, 30, TimeUnit.SECONDS, new CheckRepositoryNodeJob()(config, dataStore, httpClient))
@@ -77,16 +81,6 @@ class Bootstrap extends ServletContextListener with ServletContextSyntax {
     monix.cancel()
     httpClient.shutdown.unsafeRunSync()
     Database.closeDataSource()
-  }
-
-  private def liquibaseDriver(url: String): liquibase.database.Database = {
-    if(url.startsWith("jdbc:postgresql://")){
-      new PostgresDatabase()
-    } else if(url.startsWith("jdbc:mysql://")){
-      new MySQLDatabase()
-    } else {
-      new UnsupportedDatabase()
-    }
   }
 
   protected def checkTableExist(conn: Connection): Boolean = {
