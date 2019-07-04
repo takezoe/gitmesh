@@ -21,7 +21,7 @@ This project is still under development phase, but if you are interested, please
 
 ## Setup
 
-You can run run a minimal gitmesh cluster on docker and docker-compose.
+You can run a minimal gitmesh cluster on docker and docker-compose.
 
 ### Prerequisites
 
